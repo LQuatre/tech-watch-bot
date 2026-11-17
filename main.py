@@ -19,12 +19,13 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-# Modèles testés en cascade en cas de pic de charge (503) ou indisponibilité
+# Modèles prioritaires selon ta demande
 CANDIDATE_MODELS = [
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.1-pro",
     "gemini-3.8-flash",
-    "gemini-1.5-flash",
-    "gemini-3.8-pro",
-    "gemini-2.0-flash-exp"
+    "gemini-1.5-flash"
 ]
 
 # Les 5 piliers avec sources vérifiées et actives
