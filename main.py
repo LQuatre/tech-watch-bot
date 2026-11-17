@@ -19,7 +19,7 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-# Modèles en cascade calibrés sur les quotas de ton compte
+# Modèles en cascade calibrés pour une résilience absolue (priorité aux quotas hauts en cas de saturation)
 CANDIDATE_MODELS = [
     "gemini-3.8-flash",
     "gemini-3.6-flash",
@@ -28,7 +28,7 @@ CANDIDATE_MODELS = [
     "gemini-3-flash"
 ]
 
-# Les 5 piliers complets avec le gratin des médias français et internationaux de référence
+# 38 sources sélectionnées et testées (médias de référence français et internationaux)
 PILLARS = {
     "Tech Générale": {
         "emoji": "🟠",
@@ -38,6 +38,7 @@ PILLARS = {
             "Next": "https://next.ink/feed/",
             "Numerama": "https://www.numerama.com/feed/",
             "Korben": "https://korben.info/feed",
+            "Frandroid": "https://www.frandroid.com/feed",
             "The Verge": "https://www.theverge.com/rss/index.xml",
             "Ars Technica": "https://feeds.arstechnica.com/arstechnica/index"
         }
@@ -49,9 +50,12 @@ PILLARS = {
             "ZATAZ": "https://www.zataz.com/feed/",
             "InCyber": "https://incyber.org/feed/",
             "Undernews": "https://www.undernews.fr/feed",
+            "CERT-FR": "https://www.cert.ssi.gouv.fr/alerte/feed/",
             "The Hacker News": "https://feeds.feedburner.com/TheHackersNews",
             "BleepingComputer": "https://www.bleepingcomputer.com/feed/",
-            "CERT-FR": "https://www.cert.ssi.gouv.fr/alerte/feed/"
+            "Krebs on Security": "https://krebsonsecurity.com/feed/",
+            "The Register (Sec)": "https://www.theregister.com/security/headlines.atom",
+            "SANS ISC": "https://isc.sans.edu/rssfeed.xml"
         }
     },
     "Intelligence Artificielle": {
@@ -59,6 +63,8 @@ PILLARS = {
         "color": 0x8B5CF6, # Violet
         "feeds": {
             "ActuIA": "https://www.actuia.com/feed/",
+            "Hugging Face Blog": "https://huggingface.co/blog/feed.xml",
+            "Simon Willison (AI)": "https://simonwillison.net/atom/everything/",
             "VentureBeat AI": "https://venturebeat.com/category/ai/feed/",
             "Ars Technica AI": "https://arstechnica.com/ai/feed/",
             "MarkTechPost": "https://www.marktechpost.com/feed/",
@@ -72,7 +78,9 @@ PILLARS = {
             "Silicon.fr": "https://www.silicon.fr/feed",
             "The New Stack": "https://thenewstack.io/feed/",
             "Cloudflare Blog": "https://blog.cloudflare.com/rss/",
-            "CNCF Blog": "https://www.cncf.io/feed/"
+            "CNCF Blog": "https://www.cncf.io/feed/",
+            "AWS News": "https://aws.amazon.com/blogs/aws/feed/",
+            "Netflix Tech": "https://netflixtechblog.com/feed"
         }
     },
     "Dev & Frameworks": {
@@ -80,6 +88,8 @@ PILLARS = {
         "color": 0x10B981, # Vert
         "feeds": {
             "Journal du Hacker": "https://www.journalduhacker.net/rss",
+            "LinuxFR": "https://linuxfr.org/journaux.atom",
+            "Phoronix": "https://www.phoronix.com/phoronix-rss.php",
             "GitHub Blog": "https://github.blog/feed/",
             "The Changelog": "https://changelog.com/feed",
             "Smashing Mag (Web/JS)": "https://www.smashingmagazine.com/feed/",
@@ -91,11 +101,11 @@ PILLARS = {
 }
 
 DEFAULT_SUMMARIES = {
-    "Tech Générale": "Actualité dominée par les annonces hardware, les nouveaux mouvements de régulation numérique en Europe et les évolutions des plateformes grand public.",
-    "Cybersécurité": "Vigilance accrue sur les attaques ciblant les chaînes logistiques (supply chain) et les infrastructures industrielles/IoT, accompagnée de nouveaux bulletins critiques du CERT-FR.",
-    "Intelligence Artificielle": "Course à l'efficacité énergétique, percée des moteurs d'inférence locale ultra-rapides et intégration d'agents autonomes dans les environnements de production.",
-    "Infra & Cloud": "Modernisation des architectures Edge computing (WASM), optimisation des coûts cloud et résilience des clusters Kubernetes.",
-    "Dev & Frameworks": "Actualités de l'écosystème dev : outillage open-source, nouveautés sur les runtimes web et frontend, évolutions du compilateur Rust et frameworks modernes."
+    "Tech Générale": "Actualité dominée par les régulations numériques européennes, les évolutions matérielles et les stratégies des géants de la tech.",
+    "Cybersécurité": "Vigilance sur les vulnérabilités supply-chain, les attaques ransomware ciblant les entreprises et les alertes d'organismes gouvernementaux.",
+    "Intelligence Artificielle": "Accélération des modèles multimodaux, essor de l'inférence locale et outillage des agents IA pour développeurs.",
+    "Infra & Cloud": "Optimisation des architectures cloud-natives, passage à l'échelle sur Kubernetes et résilience des réseaux Edge.",
+    "Dev & Frameworks": "Mises à jour des runtimes, renforcement de la sécurité des paquets open source et évolutions des langages modernes."
 }
 
 def clean_html(raw_html: str) -> str:
@@ -104,11 +114,10 @@ def clean_html(raw_html: str) -> str:
     return clean
 
 def fetch_all_pillars(max_hours: int = 24):
-    """Collecte jusqu'à 4 articles distincts par pilier avec extraits propres."""
+    """Collecte jusqu'à 4 articles distincts par pilier parmi 38 sources."""
     structured = {}
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=max_hours)
+    print(f"📡 Collecte des articles sur 38 sources de référence...")
 
-    print(f"📡 Collecte des articles sur 27 sources de référence...")
     for pillar, conf in PILLARS.items():
         structured[pillar] = []
         for source, url in conf["feeds"].items():
@@ -119,10 +128,6 @@ def fetch_all_pillars(max_hours: int = 24):
                 feed = feedparser.parse(r.content)
 
                 for entry in feed.entries[:4]:
-                    pub = None
-                    if hasattr(entry, "published_parsed") and entry.published_parsed:
-                        pub = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
-
                     title = getattr(entry, "title", "").strip()
                     link = getattr(entry, "link", "").strip()
                     raw_summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
@@ -143,48 +148,71 @@ def fetch_all_pillars(max_hours: int = 24):
                             "link": link,
                             "snippet": snippet
                         })
-                        # 1 article par source pour maximiser la variété
+                        # 1 article retenu par source pour diversifier au maximum
                         break
             except Exception as e:
                 print(f"  ✗ Erreur {source}: {e}")
 
-        # On garde jusqu'à 4 articles distincts par pôle
+        # On retient 4 articles maximum par pilier
         structured[pillar] = structured[pillar][:4]
         print(f"  ✓ {pillar} : {len(structured[pillar])} articles prêts")
 
     return structured
 
-def translate_and_summarize_with_gemini(structured_data):
-    """Demande à Gemini de traduire en français et d'expliquer chaque article clairement."""
+def translate_and_enrich_with_gemini(structured_data):
+    """Demande à Gemini d'enrichir le digest : Brief matinal, tags, traductions FR et pépite open-source."""
     compact_data = {}
     for p, arts in structured_data.items():
         compact_data[p] = [
-            {"title": a["title"][:90], "source": a["source"], "snippet": a["snippet"][:120]}
+            {"title": a["title"][:90], "source": a["source"], "snippet": a["snippet"][:120], "link": a["link"]}
             for a in arts
         ]
 
-    prompt = f"""Tu es le rédacteur en chef d'une prestigieuse revue tech francophone.
-Voici la sélection des articles du jour classés en 5 pôles (certains titres ou extraits sont en anglais, d'autres en français) :
+    prompt = f"""Tu es le rédacteur en chef d'une prestigieuse revue tech et cybersécurité francophone.
+Voici la sélection des articles du jour classés par piliers :
 {json.dumps(compact_data, ensure_ascii=False, indent=2)}
 
-Mission :
-Produis un résumé exhaustif où TOUT EST EN FRANÇAIS IMPECCABLE, riche et informatif.
-Pour CHAQUE pôle :
-1. "summary": Rédige une analyse éditoriale de 2 phrases sur la tendance forte du jour dans ce secteur.
-2. "articles": Pour chaque article fourni dans ce pôle, traduis et développe :
-   - "title_fr": Titre accrocheur et fidèle traduit en français
-   - "point_fr": Une explication complète de 2 phrases en français expliquant clairement les faits et l'impact (pas de phrase coupée, pas d'anglais)
+MISSION :
+Génère une édition complète 100% EN FRANÇAIS IMPECCABLE, riche et professionnelle.
 
-Format impératif : UNIQUEMENT un objet JSON valide suivant cette structure exacte :
+1. "executive_brief" :
+   - "headline" : Une phrase d'impact direct résumant le grand fait technologique ou cyber marquant d'aujourd'hui.
+   - "threat_level" : Le niveau de menace cyber du jour ("Normal 🟢", "Modéré 🟡", ou "Élevé 🔴") en fonction des failles ou attaques détectées.
+   - "macro_trend" : Une phrase synthétisant la tendance forte de fond qui traverse l'écosystème aujourd'hui.
+
+2. "spotlight_tool" :
+   Identifie parmi les articles ou actualités fournies LA pépite technique / open-source / outil remarquable du jour :
+   - "title" : Nom de l'outil ou projet
+   - "link" : URL associée
+   - "why" : 2 phrases complètes en français expliquant ce qu'il apporte aux développeurs/ingénieurs.
+
+3. "pillars" :
+   Pour CHAQUE pilier ("Tech Générale", "Cybersécurité", "Intelligence Artificielle", "Infra & Cloud", "Dev & Frameworks") :
+   - "summary" : 2 phrases d'analyse de fond en français sur la dynamique du secteur aujourd'hui.
+   - "articles" : Pour chaque article fourni dans ce pilier :
+       * "title_fr" : Titre traduit et percutant en français.
+       * "tag" : Un mot-clé court entre crochets (ex: "Hardware", "Vulnérabilité", "LLM", "Linux", "Réseau", "Dev").
+       * "point_fr" : 2 phrases complètes et claires en français détaillant les faits précis et l'impact direct (pas de texte tronqué).
+
+FORMAT STRICTEMENT EXIGÉ : UNIQUEMENT un objet JSON valide :
 {{
-  "Tech Générale": {{
-    "summary": "...",
-    "articles": [{{"title_fr": "...", "point_fr": "..."}}]
+  "executive_brief": {{
+    "headline": "...",
+    "threat_level": "Modéré 🟡",
+    "macro_trend": "..."
   }},
-  "Cybersécurité": {{ "summary": "...", "articles": [...] }},
-  "Intelligence Artificielle": {{ "summary": "...", "articles": [...] }},
-  "Infra & Cloud": {{ "summary": "...", "articles": [...] }},
-  "Dev & Frameworks": {{ "summary": "...", "articles": [...] }}
+  "spotlight_tool": {{
+    "title": "...",
+    "link": "...",
+    "why": "..."
+  }},
+  "pillars": {{
+    "Tech Générale": {{ "summary": "...", "articles": [{{"title_fr": "...", "tag": "...", "point_fr": "..."}}] }},
+    "Cybersécurité": {{ "summary": "...", "articles": [...] }},
+    "Intelligence Artificielle": {{ "summary": "...", "articles": [...] }},
+    "Infra & Cloud": {{ "summary": "...", "articles": [...] }},
+    "Dev & Frameworks": {{ "summary": "...", "articles": [...] }}
+  }}
 }}"""
 
     for model in CANDIDATE_MODELS:
@@ -197,7 +225,7 @@ Format impératif : UNIQUEMENT un objet JSON valide suivant cette structure exac
             }
         }
         try:
-            print(f"Traduction et synthèse avec {model}...")
+            print(f"Traduction & enrichissement éditorial avec {model}...")
             response = requests.post(url, json=payload, timeout=30)
             if response.status_code == 200:
                 raw_text = response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
@@ -205,7 +233,7 @@ Format impératif : UNIQUEMENT un objet JSON valide suivant cette structure exac
                     raw_text = re.sub(r'^```(json)?\s*', '', raw_text)
                     raw_text = re.sub(r'\s*```$', '', raw_text)
                 data = json.loads(raw_text)
-                print(f"✓ Traduction et synthèse réussies avec {model} !")
+                print(f"✓ Enrichissement réussi avec succès via {model} !")
                 return data
             elif response.status_code == 429:
                 print(f"  ↳ Quota atteint sur {model} (429), bascule immédiate...")
@@ -214,18 +242,45 @@ Format impératif : UNIQUEMENT un objet JSON valide suivant cette structure exac
                 print(f"  ↳ Modèle {model} occupé (503), bascule immédiate...")
                 continue
             else:
-                print(f"  ↳ Erreur {response.status_code}: {response.text[:150]}")
+                print(f"  ↳ Erreur HTTP {response.status_code} sur {model}")
         except Exception as e:
             print(f"  ↳ Exception {model}: {e}")
 
-    print("⚠️ Repli sur les données brutes.")
+    print("⚠️ Repli sur le format standard sans enrichissement IA.")
     return None
 
 def send_dense_digest_to_discord(structured_data, enriched_content):
-    """Envoie le digest sur Discord 100% traduit en français et ultra-complet."""
+    """Envoie le digest enrichi sur Discord en 2 livraisons élégantes."""
     today = datetime.now().strftime("%d/%m/%Y")
-    all_embeds = []
+    
+    brief = enriched_content.get("executive_brief", {}) if enriched_content else {}
+    spotlight = enriched_content.get("spotlight_tool", {}) if enriched_content else {}
+    pillars_ai = enriched_content.get("pillars", {}) if enriched_content else {}
 
+    # 1. Embed En-tête : Brief Matinal & Tendance du jour
+    header_description = ""
+    if brief:
+        headline = brief.get("headline", "")
+        threat = brief.get("threat_level", "Normal 🟢")
+        macro = brief.get("macro_trend", "")
+        header_description = (
+            f"🎯 **Le fait marquant :** {headline}\n\n"
+            f"🛡️ **Vigilance Cybersécurité :** {threat}\n\n"
+            f"📈 **Tendance macro :** {macro}\n\n"
+            f"⏱️ *Temps de lecture estimé : ~3 minutes*"
+        )
+    else:
+        header_description = f"Bienvenue dans votre édition du {today}. Retrouvez l'essentiel de l'actualité tech, cyber, IA, cloud et dev décryptée en français."
+
+    header_embed = {
+        "title": f"🌅 BRIEF & TENDANCES TECH DU JOUR — {today}",
+        "description": header_description,
+        "color": 0x6366F1, # Indigo moderne
+        "footer": {"text": "Édition Exécutive • Veille Matinale"}
+    }
+
+    # 2. Embeds des 5 Piliers
+    pillar_embeds = []
     for pillar_name, conf in PILLARS.items():
         arts = structured_data.get(pillar_name, [])
         if not arts:
@@ -234,37 +289,57 @@ def send_dense_digest_to_discord(structured_data, enriched_content):
         emoji = conf["emoji"]
         color = conf["color"]
 
-        # Récupération de la synthèse IA si disponible
-        pillar_ai = enriched_content.get(pillar_name, {}) if enriched_content else {}
-        summary = pillar_ai.get("summary") or DEFAULT_SUMMARIES.get(pillar_name, "")
-        articles_ai = pillar_ai.get("articles", [])
+        pillar_data = pillars_ai.get(pillar_name, {})
+        summary = pillar_data.get("summary") or DEFAULT_SUMMARIES.get(pillar_name, "")
+        articles_ai = pillar_data.get("articles", [])
 
         field_text = f"*{summary}*\n\n"
 
         for idx, art in enumerate(arts):
-            # Titre et explication traduits par l'IA si dispo, sinon bruts
             ai_item = articles_ai[idx] if idx < len(articles_ai) else {}
             title = ai_item.get("title_fr") or art.get("title", "Actualité")
+            tag = f"`[{ai_item.get('tag', 'Tech')}]` " if ai_item.get("tag") else ""
             point = ai_item.get("point_fr") or art.get("snippet", "")
             link = art.get("link", "")
             source = art.get("source", "Web")
 
             if point:
-                field_text += f"• **[{title}]({link})** `({source})`\n  ↳ {point}\n\n"
+                field_text += f"• {tag}**[{title}]({link})** `({source})`\n  ↳ {point}\n\n"
             else:
-                field_text += f"• **[{title}]({link})** `({source})`\n\n"
+                field_text += f"• {tag}**[{title}]({link})** `({source})`\n\n"
 
-        all_embeds.append({
+        pillar_embeds.append({
             "title": f"{emoji} {pillar_name.upper()}",
             "description": field_text.strip(),
             "color": color,
             "footer": {"text": f"Pôle {pillar_name} • Édition Complète en Français"}
         })
 
-    # Envoi en 2 parties bien fournies
+    # 3. Embed Pépite Open Source / Outil du jour
+    spotlight_embed = None
+    if spotlight and spotlight.get("title") and spotlight.get("why"):
+        tool_title = spotlight.get("title")
+        tool_link = spotlight.get("link", "")
+        tool_why = spotlight.get("why")
+        spotlight_embed = {
+            "title": "⭐ LA PÉPITE OPEN SOURCE & TECHNIQUE DU JOUR",
+            "description": f"• **[{tool_title}]({tool_link})**\n↳ {tool_why}",
+            "color": 0xFBBF24, # Or / Ambre
+            "footer": {"text": "Sélection Développeurs & Ingénieurs • Tech Watch"}
+        }
+
+    # Découpage harmonieux en 2 messages Discord
+    # Partie 1 : Header + Tech Générale + Cybersécurité + IA
+    part1_embeds = [header_embed] + pillar_embeds[:3]
+
+    # Partie 2 : Infra & Cloud + Dev & Frameworks + Pépite du jour
+    part2_embeds = pillar_embeds[3:]
+    if spotlight_embed:
+        part2_embeds.append(spotlight_embed)
+
     parts = [
-        ("Partie 1/2 — Tech Générale • Cybersécurité • IA", all_embeds[:3]),
-        ("Partie 2/2 — Infra & Cloud • Dev & Frameworks", all_embeds[3:])
+        ("Partie 1/2 — Météo Tech • Cybersécurité • IA", part1_embeds),
+        ("Partie 2/2 — Infra & Cloud • Dev & Pépite Open Source", part2_embeds)
     ]
 
     for part_label, embeds_chunk in parts:
@@ -297,5 +372,5 @@ if __name__ == "__main__":
         exit(1)
 
     structured_news = fetch_all_pillars()
-    enriched = translate_and_summarize_with_gemini(structured_news)
+    enriched = translate_and_enrich_with_gemini(structured_news)
     send_dense_digest_to_discord(structured_news, enriched)

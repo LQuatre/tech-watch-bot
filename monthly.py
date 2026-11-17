@@ -39,12 +39,17 @@ FEEDS = {
     "ZATAZ": "https://www.zataz.com/feed/",
     "InCyber": "https://incyber.org/feed/",
     "Undernews": "https://www.undernews.fr/feed",
+    "CERT-FR": "https://www.cert.ssi.gouv.fr/alerte/feed/",
     "The Hacker News": "https://feeds.feedburner.com/TheHackersNews",
     "BleepingComputer": "https://www.bleepingcomputer.com/feed/",
-    "CERT-FR": "https://www.cert.ssi.gouv.fr/alerte/feed/",
+    "Krebs on Security": "https://krebsonsecurity.com/feed/",
+    "The Register (Sec)": "https://www.theregister.com/security/headlines.atom",
+    "SANS ISC": "https://isc.sans.edu/rssfeed.xml",
 
     # 🤖 Intelligence Artificielle
     "ActuIA": "https://www.actuia.com/feed/",
+    "Hugging Face Blog": "https://huggingface.co/blog/feed.xml",
+    "Simon Willison (AI)": "https://simonwillison.net/atom/everything/",
     "VentureBeat AI": "https://venturebeat.com/category/ai/feed/",
     "Ars Technica AI": "https://arstechnica.com/ai/feed/",
     "MarkTechPost": "https://www.marktechpost.com/feed/",
@@ -55,14 +60,18 @@ FEEDS = {
     "The New Stack": "https://thenewstack.io/feed/",
     "Cloudflare Blog": "https://blog.cloudflare.com/rss/",
     "CNCF Blog": "https://www.cncf.io/feed/",
+    "AWS News": "https://aws.amazon.com/blogs/aws/feed/",
+    "Netflix Tech": "https://netflixtechblog.com/feed",
 
     # 💻 Dev & Technos
     "Journal du Hacker": "https://www.journalduhacker.net/rss",
+    "LinuxFR": "https://linuxfr.org/journaux.atom",
+    "Phoronix": "https://www.phoronix.com/phoronix-rss.php",
     "GitHub Blog": "https://github.blog/feed/",
     "The Changelog": "https://changelog.com/feed",
     "Smashing Mag (Web/JS)": "https://www.smashingmagazine.com/feed/",
-    "Rust Blog": "https://blog.rust-lang.org/feed.xml",
     "InfoQ": "https://feed.infoq.com/",
+    "Rust Blog": "https://blog.rust-lang.org/feed.xml",
     "Laravel News": "https://laravel-news.com/feed",
 
     # 🌐 Tech générale
@@ -70,6 +79,7 @@ FEEDS = {
     "Next": "https://next.ink/feed/",
     "Korben": "https://korben.info/feed",
     "Numerama": "https://www.numerama.com/feed/",
+    "Frandroid": "https://www.frandroid.com/feed",
     "The Verge": "https://www.theverge.com/rss/index.xml",
     "Ars Technica": "https://feeds.arstechnica.com/arstechnica/index"
 }
