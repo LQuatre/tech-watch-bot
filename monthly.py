@@ -11,7 +11,7 @@ try:
 except ImportError:
     pass
 
-# Nettoyage des clés (retire les espaces ou guillemets accidentels lors du copier-coller)
+# Nettoyage des clés (retire les espaces ou guillemets accidentels)
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "").strip(' "\'\r\n\t')
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip(' "\'\r\n\t')
 
@@ -94,8 +94,8 @@ def fetch_top_stories_monthly():
     return stories
 
 def discover_available_gemini_model():
-    """Interroge l'API pour lister les modèles réels autorisés pour cette clé."""
-    print("🔍 Vérification de la clé API et détection des modèles disponibles...")
+    """Interroge l'API pour lister les modèles réels autorisés et choisir le plus récent."""
+    print("🔍 Détection du modèle Gemini...")
     url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
     try:
         resp = requests.get(url, timeout=15)
@@ -106,17 +106,22 @@ def discover_available_gemini_model():
                 for m in models
                 if "generateContent" in m.get("supportedGenerationMethods", [])
             ]
-            print(f"  ✓ Modèles autorisés trouvés ({len(supported)}) : {', '.join(supported[:6])}")
-            for pref in ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro", "gemini-2.0-flash-exp", "gemini-pro"]:
+            print(f"  ✓ Modèles disponibles : {', '.join(supported)}")
+            # Préférer le nouveau modèle standard gemini-3.8-flash recommandé par l'API
+            for pref in ["gemini-3.8-flash", "gemini-3.8-pro", "gemini-3-flash", "gemini-2.5-flash", "gemini-1.5-flash"]:
                 if pref in supported:
                     return pref
-            return supported[0] if supported else "gemini-1.5-flash"
+            # Sinon le premier contenant "3.8" ou "flash"
+            for m in supported:
+                if "3.8-flash" in m or "3.8" in m:
+                    return m
+            return supported[0] if supported else "gemini-3.8-flash"
         else:
-            print(f"  ❌ Erreur Google API ({resp.status_code}) : {resp.text}")
+            print(f"  ⚠️ Erreur détection modèles ({resp.status_code}) : {resp.text}")
     except Exception as e:
-        print(f"  ❌ Exception de connexion à Google API : {e}")
+        print(f"  ⚠️ Exception de détection : {e}")
 
-    return "gemini-1.5-flash"
+    return "gemini-3.8-flash"
 
 def generate_monthly_digest(stories):
     """Demande à Gemini de créer une grande rétrospective mensuelle catégorisée avec Cyber, Infra, Dev et IA."""
