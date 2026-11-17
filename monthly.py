@@ -21,11 +21,9 @@ HEADERS = {
 
 # Modèles en cascade : priorité absolue à 3.8, avec repli immédiat sur 3.7 / 3.6 / 3.1 en cas de pic de charge
 CANDIDATE_MODELS = [
-    "gemini-3.8-flash",
-    "gemini-3.7-flash",
     "gemini-3.6-flash",
-    "gemini-3.1-pro",
-    "gemini-1.5-flash"
+    "gemini-3.7-flash",
+    "gemini-3.8-flash"
 ]
 
 MONTHS_FR = [

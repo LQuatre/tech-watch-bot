@@ -19,10 +19,11 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
+# Priorité à 3.6 pour aujourd'hui (quota 3.8 plein à 21/20), puis 3.7 et 3.8
 CANDIDATE_MODELS = [
-    "gemini-3.8-flash",
+    "gemini-3.6-flash",
     "gemini-3.7-flash",
-    "gemini-3.6-flash"
+    "gemini-3.8-flash"
 ]
 
 # Les 5 piliers avec sources vérifiées et actives
