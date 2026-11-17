@@ -43,24 +43,35 @@ FEEDS = {
     "BleepingComputer": "https://www.bleepingcomputer.com/feed/",
     "CERT-FR": "https://www.cert.ssi.gouv.fr/alerte/feed/",
 
+    # 🤖 Intelligence Artificielle
+    "ActuIA": "https://www.actuia.com/feed/",
+    "VentureBeat AI": "https://venturebeat.com/category/ai/feed/",
+    "Ars Technica AI": "https://arstechnica.com/ai/feed/",
+    "MarkTechPost": "https://www.marktechpost.com/feed/",
+    "TechCrunch AI": "https://techcrunch.com/category/artificial-intelligence/feed/",
+
     # ☁️ Infra & Cloud
-    "The New Stack": "https://thenewstack.io/feed/",
     "Silicon.fr": "https://www.silicon.fr/feed",
+    "The New Stack": "https://thenewstack.io/feed/",
     "Cloudflare Blog": "https://blog.cloudflare.com/rss/",
+    "CNCF Blog": "https://www.cncf.io/feed/",
 
     # 💻 Dev & Technos
+    "Journal du Hacker": "https://www.journalduhacker.net/rss",
     "GitHub Blog": "https://github.blog/feed/",
     "The Changelog": "https://changelog.com/feed",
     "Smashing Mag (Web/JS)": "https://www.smashingmagazine.com/feed/",
     "Rust Blog": "https://blog.rust-lang.org/feed.xml",
     "InfoQ": "https://feed.infoq.com/",
-    "Laravel News (PHP)": "https://laravel-news.com/feed",
+    "Laravel News": "https://laravel-news.com/feed",
 
     # 🌐 Tech générale
+    "Le Monde Informatique": "https://www.lemondeinformatique.fr/flux-rss/thematique/toutes-les-actualites/rss.xml",
     "Next": "https://next.ink/feed/",
     "Korben": "https://korben.info/feed",
     "Numerama": "https://www.numerama.com/feed/",
-    "The Verge": "https://www.theverge.com/rss/index.xml"
+    "The Verge": "https://www.theverge.com/rss/index.xml",
+    "Ars Technica": "https://feeds.arstechnica.com/arstechnica/index"
 }
 
 def fetch_top_stories_monthly():

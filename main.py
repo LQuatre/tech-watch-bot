@@ -19,6 +19,7 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
+# Modèles en cascade calibrés sur les quotas de ton compte
 CANDIDATE_MODELS = [
     "gemini-3.8-flash",
     "gemini-3.6-flash",
@@ -27,17 +28,18 @@ CANDIDATE_MODELS = [
     "gemini-3-flash"
 ]
 
-# Les 5 piliers enrichis avec des sources actives et diversifiées
+# Les 5 piliers complets avec le gratin des médias français et internationaux de référence
 PILLARS = {
     "Tech Générale": {
         "emoji": "🟠",
         "color": 0xF59E0B, # Orange
         "feeds": {
-            "The Verge": "https://www.theverge.com/rss/index.xml",
-            "TechCrunch": "https://techcrunch.com/feed/",
-            "Numerama": "https://www.numerama.com/feed/",
+            "Le Monde Informatique": "https://www.lemondeinformatique.fr/flux-rss/thematique/toutes-les-actualites/rss.xml",
             "Next": "https://next.ink/feed/",
-            "Korben": "https://korben.info/feed"
+            "Numerama": "https://www.numerama.com/feed/",
+            "Korben": "https://korben.info/feed",
+            "The Verge": "https://www.theverge.com/rss/index.xml",
+            "Ars Technica": "https://feeds.arstechnica.com/arstechnica/index"
         }
     },
     "Cybersécurité": {
@@ -56,19 +58,19 @@ PILLARS = {
         "emoji": "🟣",
         "color": 0x8B5CF6, # Violet
         "feeds": {
+            "ActuIA": "https://www.actuia.com/feed/",
             "VentureBeat AI": "https://venturebeat.com/category/ai/feed/",
             "Ars Technica AI": "https://arstechnica.com/ai/feed/",
             "MarkTechPost": "https://www.marktechpost.com/feed/",
-            "TechCrunch AI": "https://techcrunch.com/category/artificial-intelligence/feed/",
-            "Hacker News": "https://news.ycombinator.com/rss"
+            "TechCrunch AI": "https://techcrunch.com/category/artificial-intelligence/feed/"
         }
     },
     "Infra & Cloud": {
         "emoji": "🔵",
         "color": 0x3B82F6, # Bleu
         "feeds": {
-            "The New Stack": "https://thenewstack.io/feed/",
             "Silicon.fr": "https://www.silicon.fr/feed",
+            "The New Stack": "https://thenewstack.io/feed/",
             "Cloudflare Blog": "https://blog.cloudflare.com/rss/",
             "CNCF Blog": "https://www.cncf.io/feed/"
         }
@@ -77,12 +79,13 @@ PILLARS = {
         "emoji": "🟢",
         "color": 0x10B981, # Vert
         "feeds": {
+            "Journal du Hacker": "https://www.journalduhacker.net/rss",
             "GitHub Blog": "https://github.blog/feed/",
             "The Changelog": "https://changelog.com/feed",
             "Smashing Mag (Web/JS)": "https://www.smashingmagazine.com/feed/",
             "InfoQ": "https://feed.infoq.com/",
             "Rust Blog": "https://blog.rust-lang.org/feed.xml",
-            "Laravel News (PHP)": "https://laravel-news.com/feed"
+            "Laravel News": "https://laravel-news.com/feed"
         }
     }
 }
@@ -98,15 +101,14 @@ DEFAULT_SUMMARIES = {
 def clean_html(raw_html: str) -> str:
     clean = re.sub(r'<[^>]+>', '', raw_html or '')
     clean = ' '.join(clean.split())
-    # Nettoie les phrases incomplètes coupées abruptement
     return clean
 
 def fetch_all_pillars(max_hours: int = 24):
-    """Collecte 4 articles distincts par pilier avec du vrai texte substantiel."""
+    """Collecte jusqu'à 4 articles distincts par pilier avec extraits propres."""
     structured = {}
     cutoff = datetime.now(timezone.utc) - timedelta(hours=max_hours)
 
-    print(f"📡 Collecte approfondie des articles des 5 piliers...")
+    print(f"📡 Collecte des articles sur 27 sources de référence...")
     for pillar, conf in PILLARS.items():
         structured[pillar] = []
         for source, url in conf["feeds"].items():
@@ -126,63 +128,63 @@ def fetch_all_pillars(max_hours: int = 24):
                     raw_summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
                     snippet = clean_html(raw_summary)
 
-                    # Filtrer les snippets vides ou parasites
                     if snippet.lower() in ("comments", "comments...", ""):
                         snippet = ""
 
-                    # Découpage propre à la fin d'une phrase complète (jusqu'à 240 caractères)
-                    if len(snippet) > 240:
-                        # Coupe proprement au dernier point ou espace
-                        cut = snippet[:240]
-                        last_period = max(cut.rfind('. '), cut.rfind('! '), cut.rfind('? '))
-                        if last_period > 100:
-                            snippet = cut[:last_period+1]
-                        else:
-                            last_space = cut.rfind(' ')
-                            snippet = (cut[:last_space] if last_space > 0 else cut) + "..."
+                    if len(snippet) > 220:
+                        cut = snippet[:220]
+                        last_space = cut.rfind(' ')
+                        snippet = (cut[:last_space] if last_space > 0 else cut) + "..."
 
                     if title and link:
-                        item = {
+                        structured[pillar].append({
                             "source": source,
                             "title": title,
                             "link": link,
                             "snippet": snippet
-                        }
-                        # On prend 1 article marquant par source pour garantir une vraie diversité
-                        structured[pillar].append(item)
+                        })
+                        # 1 article par source pour maximiser la variété
                         break
             except Exception as e:
                 print(f"  ✗ Erreur {source}: {e}")
 
         # On garde jusqu'à 4 articles distincts par pôle
         structured[pillar] = structured[pillar][:4]
-        print(f"  ✓ {pillar} : {len(structured[pillar])} articles complets prêts")
+        print(f"  ✓ {pillar} : {len(structured[pillar])} articles prêts")
 
     return structured
 
-def call_gemini_for_summaries(structured_data):
-    """Demande à Gemini de rédiger les analyses de tendances éditoriales pour chaque pôle."""
-    headlines = {
-        pillar: [a["title"] for a in arts[:4]]
-        for pillar, arts in structured_data.items()
-    }
+def translate_and_summarize_with_gemini(structured_data):
+    """Demande à Gemini de traduire en français et d'expliquer chaque article clairement."""
+    compact_data = {}
+    for p, arts in structured_data.items():
+        compact_data[p] = [
+            {"title": a["title"][:90], "source": a["source"], "snippet": a["snippet"][:120]}
+            for a in arts
+        ]
 
-    prompt = f"""Tu es le rédacteur en chef d'une grande revue tech et cybersécurité de référence.
-Voici les titres majeurs de l'actualité d'aujourd'hui, classés en 5 pôles :
-{json.dumps(headlines, ensure_ascii=False, indent=2)}
+    prompt = f"""Tu es le rédacteur en chef d'une prestigieuse revue tech francophone.
+Voici la sélection des articles du jour classés en 5 pôles (certains titres ou extraits sont en anglais, d'autres en français) :
+{json.dumps(compact_data, ensure_ascii=False, indent=2)}
 
 Mission :
-Rédige pour CHAQUE pôle une analyse de tendance en 2 phrases complètes, précises et journalistiques :
-- Explique clairement ce qui se passe aujourd'hui dans ce domaine.
-- Mets en avant l'impact ou l'enjeu sous-jacent pour les professionnels et passionnés.
+Produis un résumé exhaustif où TOUT EST EN FRANÇAIS IMPECCABLE, riche et informatif.
+Pour CHAQUE pôle :
+1. "summary": Rédige une analyse éditoriale de 2 phrases sur la tendance forte du jour dans ce secteur.
+2. "articles": Pour chaque article fourni dans ce pôle, traduis et développe :
+   - "title_fr": Titre accrocheur et fidèle traduit en français
+   - "point_fr": Une explication complète de 2 phrases en français expliquant clairement les faits et l'impact (pas de phrase coupée, pas d'anglais)
 
-Format de réponse requis : UNIQUEMENT un objet JSON valide :
+Format impératif : UNIQUEMENT un objet JSON valide suivant cette structure exacte :
 {{
-  "Tech Générale": "...",
-  "Cybersécurité": "...",
-  "Intelligence Artificielle": "...",
-  "Infra & Cloud": "...",
-  "Dev & Frameworks": "..."
+  "Tech Générale": {{
+    "summary": "...",
+    "articles": [{{"title_fr": "...", "point_fr": "..."}}]
+  }},
+  "Cybersécurité": {{ "summary": "...", "articles": [...] }},
+  "Intelligence Artificielle": {{ "summary": "...", "articles": [...] }},
+  "Infra & Cloud": {{ "summary": "...", "articles": [...] }},
+  "Dev & Frameworks": {{ "summary": "...", "articles": [...] }}
 }}"""
 
     for model in CANDIDATE_MODELS:
@@ -195,15 +197,16 @@ Format de réponse requis : UNIQUEMENT un objet JSON valide :
             }
         }
         try:
-            print(f"Génération de l'analyse avec {model}...")
-            response = requests.post(url, json=payload, timeout=20)
+            print(f"Traduction et synthèse avec {model}...")
+            response = requests.post(url, json=payload, timeout=30)
             if response.status_code == 200:
                 raw_text = response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
                 if raw_text.startswith("```"):
                     raw_text = re.sub(r'^```(json)?\s*', '', raw_text)
                     raw_text = re.sub(r'\s*```$', '', raw_text)
-                print(f"✓ Synthèses rédigées avec succès par {model} !")
-                return json.loads(raw_text)
+                data = json.loads(raw_text)
+                print(f"✓ Traduction et synthèse réussies avec {model} !")
+                return data
             elif response.status_code == 429:
                 print(f"  ↳ Quota atteint sur {model} (429), bascule immédiate...")
                 continue
@@ -215,11 +218,11 @@ Format de réponse requis : UNIQUEMENT un objet JSON valide :
         except Exception as e:
             print(f"  ↳ Exception {model}: {e}")
 
-    print("⚠️ Repli sur les synthèses de secours contextuelles.")
-    return DEFAULT_SUMMARIES
+    print("⚠️ Repli sur les données brutes.")
+    return None
 
-def send_dense_digest_to_discord(structured_data, editorial_summaries):
-    """Formate et expédie le grand journal sur Discord avec des explications complètes."""
+def send_dense_digest_to_discord(structured_data, enriched_content):
+    """Envoie le digest sur Discord 100% traduit en français et ultra-complet."""
     today = datetime.now().strftime("%d/%m/%Y")
     all_embeds = []
 
@@ -230,14 +233,22 @@ def send_dense_digest_to_discord(structured_data, editorial_summaries):
 
         emoji = conf["emoji"]
         color = conf["color"]
-        summary = editorial_summaries.get(pillar_name, DEFAULT_SUMMARIES.get(pillar_name, ""))
+
+        # Récupération de la synthèse IA si disponible
+        pillar_ai = enriched_content.get(pillar_name, {}) if enriched_content else {}
+        summary = pillar_ai.get("summary") or DEFAULT_SUMMARIES.get(pillar_name, "")
+        articles_ai = pillar_ai.get("articles", [])
 
         field_text = f"*{summary}*\n\n"
-        for art in arts:
-            title = art.get("title", "Actualité")
+
+        for idx, art in enumerate(arts):
+            # Titre et explication traduits par l'IA si dispo, sinon bruts
+            ai_item = articles_ai[idx] if idx < len(articles_ai) else {}
+            title = ai_item.get("title_fr") or art.get("title", "Actualité")
+            point = ai_item.get("point_fr") or art.get("snippet", "")
             link = art.get("link", "")
             source = art.get("source", "Web")
-            point = art.get("snippet", "")
+
             if point:
                 field_text += f"• **[{title}]({link})** `({source})`\n  ↳ {point}\n\n"
             else:
@@ -247,10 +258,10 @@ def send_dense_digest_to_discord(structured_data, editorial_summaries):
             "title": f"{emoji} {pillar_name.upper()}",
             "description": field_text.strip(),
             "color": color,
-            "footer": {"text": f"Pôle {pillar_name} • Veille Quotidienne Approfondie"}
+            "footer": {"text": f"Pôle {pillar_name} • Édition Complète en Français"}
         })
 
-    # Envoi en 2 parties bien fournies (environ 3000 caractères chacune, limite Discord = 6000)
+    # Envoi en 2 parties bien fournies
     parts = [
         ("Partie 1/2 — Tech Générale • Cybersécurité • IA", all_embeds[:3]),
         ("Partie 2/2 — Infra & Cloud • Dev & Frameworks", all_embeds[3:])
@@ -261,7 +272,7 @@ def send_dense_digest_to_discord(structured_data, editorial_summaries):
             continue
 
         payload = {
-            "username": "Le Grand Journal Tech",
+            "username": "Le Grand Journal Tech & Cyber",
             "avatar_url": "https://cdn-icons-png.flaticon.com/512/4712/4712109.png",
             "content": f"📰 **Le Grand Journal Tech & Cyber du {today}** ({part_label}) :",
             "embeds": embeds_chunk
@@ -286,5 +297,5 @@ if __name__ == "__main__":
         exit(1)
 
     structured_news = fetch_all_pillars()
-    summaries = call_gemini_for_summaries(structured_news)
-    send_dense_digest_to_discord(structured_news, summaries)
+    enriched = translate_and_summarize_with_gemini(structured_news)
+    send_dense_digest_to_discord(structured_news, enriched)
