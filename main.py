@@ -119,7 +119,7 @@ def clean_html(raw_html: str) -> str:
     return clean
 
 def fetch_all_pillars(max_hours: int = 24):
-    """Collecte jusqu'à 4 articles distincts par pilier parmi 43 sources."""
+    """Collecte jusqu'à 5 articles distincts par pilier parmi 43 sources."""
     structured = {}
     print(f"📡 Collecte des articles sur 43 sources de référence...")
 
@@ -158,8 +158,8 @@ def fetch_all_pillars(max_hours: int = 24):
             except Exception as e:
                 print(f"  ✗ Erreur {source}: {e}")
 
-        # On retient 4 articles maximum par pilier
-        structured[pillar] = structured[pillar][:4]
+        # On retient 5 articles maximum par pilier
+        structured[pillar] = structured[pillar][:5]
         print(f"  ✓ {pillar} : {len(structured[pillar])} articles prêts")
 
     return structured
@@ -231,7 +231,7 @@ FORMAT STRICTEMENT EXIGÉ : UNIQUEMENT un objet JSON valide :
         }
         try:
             print(f"Traduction & enrichissement éditorial avec {model}...")
-            response = requests.post(url, json=payload, timeout=30)
+            response = requests.post(url, json=payload, timeout=45)
             if response.status_code == 200:
                 raw_text = response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
                 if raw_text.startswith("```"):
