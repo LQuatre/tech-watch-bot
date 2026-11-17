@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from datetime import datetime, timezone, timedelta
 import feedparser
 import requests
@@ -12,6 +13,14 @@ except ImportError:
 
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+# Modèles Gemini testés dans l'ordre pour éviter toute erreur 404
+GEMINI_MODELS = [
+    "gemini-1.5-flash",
+    "gemini-2.0-flash-exp",
+    "gemini-1.5-pro",
+    "gemini-2.5-flash"
+]
 
 MONTHS_FR = [
     "", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -91,14 +100,38 @@ def fetch_top_stories_monthly():
 
     return stories
 
+def call_gemini(prompt: str):
+    """Appelle Gemini avec bascule automatique de modèle pour éviter les 404."""
+    for model in GEMINI_MODELS:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.2,
+                "responseMimeType": "application/json"
+            }
+        }
+        try:
+            print(f"Essai de génération avec {model}...")
+            resp = requests.post(url, json=payload, timeout=45)
+            if resp.status_code == 200:
+                print(f"✓ Succès avec le modèle {model} !")
+                return resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            elif resp.status_code == 404:
+                print(f"  ↳ Modèle {model} non disponible (404), essai du modèle suivant...")
+                continue
+            else:
+                print(f"  ↳ Erreur Gemini ({resp.status_code}) avec {model}: {resp.text}")
+        except Exception as e:
+            print(f"  ↳ Exception avec {model}: {e}")
+    return None
+
 def generate_monthly_digest(stories):
     """Demande à Gemini de créer une grande rétrospective mensuelle catégorisée avec Cyber, Infra, Dev et IA."""
     if not stories:
         return None
 
-    print("🧠 3. Analyse approfondie et rétrospective par Gemini Flash...")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
-
+    print("🧠 3. Analyse approfondie et rétrospective par Gemini...")
     current_month_name = MONTHS_FR[datetime.now().month]
     current_year = datetime.now().year
 
@@ -168,21 +201,18 @@ Consignes :
 - Les résumés doivent être percutants et clairs en 2 bullet points courts.
 - Réponds UNIQUEMENT avec un JSON valide, sans balises Markdown."""
 
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.2,
-            "responseMimeType": "application/json"
-        }
-    }
+    raw_text = call_gemini(prompt)
+    if not raw_text:
+        return None
+
+    if raw_text.startswith("```"):
+        raw_text = re.sub(r'^```(json)?\s*', '', raw_text)
+        raw_text = re.sub(r'\s*```$', '', raw_text)
 
     try:
-        resp = requests.post(url, json=payload, timeout=45)
-        resp.raise_for_status()
-        raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-        return json.loads(raw)
+        return json.loads(raw_text)
     except Exception as e:
-        print(f"❌ Erreur lors de la génération mensuelle Gemini: {e}")
+        print(f"❌ Erreur lors du parsing JSON Gemini : {e}")
         return None
 
 def send_monthly_to_discord(digest):

@@ -14,6 +14,14 @@ except ImportError:
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
+# Modèles Gemini testés dans l'ordre (gemini-1.5-flash est le modèle standard universellement supporté)
+GEMINI_MODELS = [
+    "gemini-1.5-flash",
+    "gemini-2.0-flash-exp",
+    "gemini-1.5-pro",
+    "gemini-2.5-flash"
+]
+
 # Sources RSS spécialisées par domaine
 FEEDS = {
     # 🛡️ Cybersécurité
@@ -81,14 +89,38 @@ def fetch_recent_articles(max_hours: int = 24, limit_per_feed: int = 3):
 
     return articles
 
+def call_gemini(prompt: str):
+    """Appelle l'API Gemini avec bascule automatique entre les versions en cas de 404."""
+    for model in GEMINI_MODELS:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.2,
+                "responseMimeType": "application/json"
+            }
+        }
+        try:
+            print(f"Essai avec le modèle {model}...")
+            resp = requests.post(url, json=payload, timeout=35)
+            if resp.status_code == 200:
+                print(f"✓ Réponse obtenue avec succès via {model} !")
+                return resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            elif resp.status_code == 404:
+                print(f"  ↳ Modèle {model} non disponible (404), tentative avec le suivant...")
+                continue
+            else:
+                print(f"  ↳ Erreur Gemini ({resp.status_code}) avec {model}: {resp.text}")
+        except Exception as e:
+            print(f"  ↳ Exception avec {model}: {e}")
+    return None
+
 def summarize_with_gemini(articles):
     """Sélectionne et équilibre la veille quotidienne entre Cyber, Infra, Dev et IA."""
     if not articles:
         return []
 
-    print("🧠 Analyse et catégorisation par Gemini Flash...")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
-
+    print("🧠 Analyse et catégorisation par Gemini...")
     prompt = f"""Tu es un analyste senior en veille informatique.
 Voici les articles tech collectés ces dernières 24h à partir de flux spécialisés :
 {json.dumps(articles, ensure_ascii=False, indent=2)}
@@ -121,23 +153,29 @@ IMPORTANT : Tu dois répondre UNIQUEMENT avec un tableau JSON valide au format :
 ]
 Ne mets aucun texte avant ou après le tableau JSON."""
 
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.2,
-            "responseMimeType": "application/json"
-        }
-    }
+    raw_text = call_gemini(prompt)
+    if not raw_text:
+        print("⚠️ Aucun modèle Gemini n'a répondu. Bascule vers les articles bruts.")
+        return [{
+            "category": "Dev & Technos",
+            "title": art["title"],
+            "summary": art["snippet"] or "Pas de description disponible.",
+            "link": art["link"],
+            "source": art["source"],
+            "emoji": "📰"
+        } for art in articles[:5]]
+
+    # Nettoyage d'éventuels backticks markdown
+    if raw_text.startswith("```"):
+        raw_text = re.sub(r'^```(json)?\s*', '', raw_text)
+        raw_text = re.sub(r'\s*```$', '', raw_text)
 
     try:
-        response = requests.post(url, json=payload, timeout=30)
-        response.raise_for_status()
-        raw_text = response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
         return json.loads(raw_text)
     except Exception as e:
-        print(f"⚠️ Erreur lors de l'appel Gemini: {e}")
+        print(f"⚠️ Erreur de parsing JSON ({e}). Texte brut: {raw_text[:200]}")
         return [{
-            "category": "Tech",
+            "category": "Dev & Technos",
             "title": art["title"],
             "summary": art["snippet"] or "Pas de description disponible.",
             "link": art["link"],
