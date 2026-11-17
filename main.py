@@ -5,7 +5,6 @@ from datetime import datetime, timezone, timedelta
 import feedparser
 import requests
 
-# Chargement automatique du fichier .env en local s'il existe
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -15,27 +14,46 @@ except ImportError:
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# Sources RSS : sélection de médias tech de référence (Français et Internationaux)
+# Sources RSS spécialisées par domaine
 FEEDS = {
+    # 🛡️ Cybersécurité
+    "The Hacker News (Cyber)": "https://feeds.feedburner.com/TheHackersNews",
+    "BleepingComputer (Cyber)": "https://www.bleepingcomputer.com/feed/",
+    "CERT-FR (Alertes Sécu)": "https://www.cert.ssi.gouv.fr/alerte/feed/",
+
+    # ☁️ Infra & DevOps / Cloud
+    "Cloudflare Blog (Infra)": "https://blog.cloudflare.com/rss/",
+    "DevOps.com (Infra)": "https://devops.com/feed/",
+
+    # 💻 Dev, Frameworks & Nouvelles Technos
+    "InfoQ (Dev & Arch)": "https://feed.infoq.com/",
+    "Changelog (Dev)": "https://changelog.com/feed",
+    "Hacker News": "https://news.ycombinator.com/rss",
+
+    # 🌐 Généraliste Tech & Médias FR
     "Korben": "https://korben.info/feed",
     "Numerama": "https://www.numerama.com/feed/",
-    "The Verge": "https://www.theverge.com/rss/index.xml",
-    "Hacker News": "https://news.ycombinator.com/rss",
-    "Ars Technica": "https://feeds.arstechnica.com/arstechnica/index",
-    "TechCrunch": "https://techcrunch.com/feed/"
+    "The Verge": "https://www.theverge.com/rss/index.xml"
+}
+
+CATEGORY_COLORS = {
+    "Cybersécurité": 0xEF4444,   # Rouge sécurité
+    "Infra & Cloud": 0x3B82F6,   # Bleu infra/cloud
+    "Dev & Technos": 0x10B981,   # Vert dev/code
+    "IA & Écosystème": 0x8B5CF6  # Violet IA
 }
 
 def clean_html(raw_html: str) -> str:
-    """Retire les balises HTML basiques des extraits RSS."""
+    """Retire les balises HTML des résumés."""
     clean = re.sub(r'<[^>]+>', '', raw_html or '')
     return ' '.join(clean.split())
 
-def fetch_recent_articles(max_hours: int = 24, limit_per_feed: int = 4):
+def fetch_recent_articles(max_hours: int = 24, limit_per_feed: int = 3):
     """Récupère les articles récents des dernières 24 heures."""
     articles = []
     cutoff = datetime.now(timezone.utc) - timedelta(hours=max_hours)
 
-    print(f"📡 Analyse des flux RSS (dernières {max_hours} heures)...")
+    print(f"📡 Analyse des flux spécialisés (dernières {max_hours} heures)...")
 
     for source, url in FEEDS.items():
         try:
@@ -57,41 +75,48 @@ def fetch_recent_articles(max_hours: int = 24, limit_per_feed: int = 4):
                     count += 1
                     if count >= limit_per_feed:
                         break
-            print(f"  ✓ {source} : {count} article(s) trouvé(s)")
+            print(f"  ✓ {source} : {count} article(s)")
         except Exception as e:
             print(f"  ✗ Erreur sur {source}: {e}")
 
     return articles
 
 def summarize_with_gemini(articles):
-    """Sélectionne et résume les 5 actus phares via l'API Gemini."""
+    """Sélectionne et équilibre la veille quotidienne entre Cyber, Infra, Dev et IA."""
     if not articles:
         return []
 
-    print("🧠 Analyse et synthèse par Gemini Flash...")
+    print("🧠 Analyse et catégorisation par Gemini Flash...")
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
 
-    prompt = f"""Tu es un analyste senior spécialisé en veille informatique et tech.
-Voici une liste d'articles d'actualité collectés aujourd'hui :
+    prompt = f"""Tu es un analyste senior en veille informatique.
+Voici les articles tech collectés ces dernières 24h à partir de flux spécialisés :
 {json.dumps(articles, ensure_ascii=False, indent=2)}
 
 Mission :
-1. Sélectionne les 5 actualités les plus percutantes et importantes (évite les doublons et les rumeurs mineures).
-2. Pour chaque actualité, traduis/synthétise en français sous forme d'un objet JSON contenant :
-   - "title": Un titre accrocheur et concis en français.
-   - "summary": 2 ou 3 puces concises (commençant par "- ") résumant les faits clés et les implications.
-   - "link": L'URL originale de l'article fournie dans la liste.
-   - "source": Le nom de la source d'origine.
-   - "emoji": Un emoji contextuel (ex: 🤖 pour IA, 🔒 pour sécu/cyber, 💻 pour dev/code, 📱 pour hardware/mobile).
+Sélectionne les 5 ou 6 actualités les plus percutantes et équilibre impérativement les thématiques suivantes :
+1. Au moins 1 sujet majeur en Cybersécurité (faille 0-day, alerte critique, incident cyber, malware).
+2. Au moins 1 sujet majeur en Infra / DevOps / Cloud (conteneurs, réseau, cloud, Linux, architecture système).
+3. Au moins 1 sujet majeur en Dev / Frameworks / Technos (mise à jour d'un langage/outil, nouvel outil dev).
+4. Le reste sur l'IA ou les actualités tech globales.
+
+Pour chaque actualité sélectionnée, produis un objet JSON :
+- "category": L'une de ces 4 catégories exactes : "Cybersécurité", "Infra & Cloud", "Dev & Technos", ou "IA & Écosystème"
+- "title": Titre accrocheur et précis en français
+- "summary": 2 ou 3 puces concises (commençant par "- ") résumant les faits clés et les implications
+- "link": L'URL originale de l'article fournie dans la liste
+- "source": Le nom de la source originale
+- "emoji": Emoji adapté (ex: 🔒, 🛡️, ☁️, ⚙️, 💻, 🤖)
 
 IMPORTANT : Tu dois répondre UNIQUEMENT avec un tableau JSON valide au format :
 [
   {{
+    "category": "Cybersécurité",
     "title": "...",
     "summary": "- Point 1\\n- Point 2",
     "link": "...",
     "source": "...",
-    "emoji": "🤖"
+    "emoji": "🛡️"
   }}
 ]
 Ne mets aucun texte avant ou après le tableau JSON."""
@@ -108,12 +133,11 @@ Ne mets aucun texte avant ou après le tableau JSON."""
         response = requests.post(url, json=payload, timeout=30)
         response.raise_for_status()
         raw_text = response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-        data = json.loads(raw_text)
-        return data
+        return json.loads(raw_text)
     except Exception as e:
-        print(f"⚠️ Erreur lors de l'appel ou du parsing Gemini: {e}")
-        # En cas d'échec de l'IA, on bascule sur les 5 premiers articles bruts
+        print(f"⚠️ Erreur lors de l'appel Gemini: {e}")
         return [{
+            "category": "Tech",
             "title": art["title"],
             "summary": art["snippet"] or "Pas de description disponible.",
             "link": art["link"],
@@ -122,7 +146,7 @@ Ne mets aucun texte avant ou après le tableau JSON."""
         } for art in articles[:5]]
 
 def send_to_discord(curated_news):
-    """Envoie les actualités formatées sur le Webhook Discord."""
+    """Envoie les actualités sur Discord avec un code couleur par catégorie."""
     if not curated_news:
         print("ℹ️ Aucune actualité à poster.")
         return
@@ -131,36 +155,36 @@ def send_to_discord(curated_news):
     embeds = []
 
     for item in curated_news[:10]:
+        cat = item.get("category", "Dev & Technos")
+        color = CATEGORY_COLORS.get(cat, 0x38BDF8)
+
         embeds.append({
-            "title": f"{item.get('emoji', '📌')} {item.get('title', 'Actualité')}",
+            "title": f"{item.get('emoji', '📌')} [{cat}] {item.get('title', 'Actualité')}",
             "url": item.get("link"),
             "description": item.get("summary", ""),
-            "footer": {"text": f"Source : {item.get('source', 'Web')}"},
-            "color": 0x38BDF8  # Teinte bleu ciel / tech
+            "footer": {"text": f"Source : {item.get('source', 'Web')} • {cat}"},
+            "color": color
         })
 
     payload = {
-        "username": "AI Tech Watcher",
+        "username": "Tech Watcher (Cyber • Infra • Dev • IA)",
         "avatar_url": "https://cdn-icons-png.flaticon.com/512/4712/4712109.png",
-        "content": f"🚀 **Veille Tech du {today}** — *Le top 5 des actus sélectionnées et synthétisées par IA :*",
+        "content": f"⚡ **Veille Tech & Sécu du {today}** — *Le digest quotidien Cyber, Infra, Dev & IA :*",
         "embeds": embeds
     }
 
     try:
         resp = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=15)
         if resp.status_code in (200, 204):
-            print("✅ Actualités envoyées sur Discord avec succès !")
+            print("✅ Veille spécialisée envoyée sur Discord avec succès !")
         else:
             print(f"❌ Erreur Webhook Discord ({resp.status_code}) : {resp.text}")
     except Exception as e:
-        print(f"❌ Erreur réseau lors de l'envoi vers Discord : {e}")
+        print(f"❌ Erreur réseau lors de l'envoi : {e}")
 
 if __name__ == "__main__":
-    if not DISCORD_WEBHOOK_URL:
-        print("❌ Erreur : DISCORD_WEBHOOK_URL n'est pas configuré.")
-        exit(1)
-    if not GEMINI_API_KEY:
-        print("❌ Erreur : GEMINI_API_KEY n'est pas configuré.")
+    if not DISCORD_WEBHOOK_URL or not GEMINI_API_KEY:
+        print("❌ Erreur : DISCORD_WEBHOOK_URL et GEMINI_API_KEY requis.")
         exit(1)
 
     news = fetch_recent_articles()

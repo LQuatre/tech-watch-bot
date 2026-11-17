@@ -1,6 +1,5 @@
 import os
 import json
-import time
 from datetime import datetime, timezone, timedelta
 import feedparser
 import requests
@@ -19,15 +18,29 @@ MONTHS_FR = [
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
 ]
 
+# Sources RSS spécialisées par domaine pour le récapitulatif mensuel
 FEEDS = {
+    # 🛡️ Cybersécurité
+    "The Hacker News (Cyber)": "https://feeds.feedburner.com/TheHackersNews",
+    "BleepingComputer (Cyber)": "https://www.bleepingcomputer.com/feed/",
+    "CERT-FR (Alertes Sécu)": "https://www.cert.ssi.gouv.fr/alerte/feed/",
+
+    # ☁️ Infra & Cloud
+    "Cloudflare Blog (Infra)": "https://blog.cloudflare.com/rss/",
+    "DevOps.com (Infra)": "https://devops.com/feed/",
+
+    # 💻 Dev & Technos
+    "InfoQ (Dev & Arch)": "https://feed.infoq.com/",
+    "Changelog (Dev)": "https://changelog.com/feed",
+
+    # 🌐 Tech généraliste
     "Korben": "https://korben.info/feed",
     "Numerama": "https://www.numerama.com/feed/",
-    "The Verge": "https://www.theverge.com/rss/index.xml",
-    "TechCrunch": "https://techcrunch.com/feed/"
+    "The Verge": "https://www.theverge.com/rss/index.xml"
 }
 
 def fetch_top_stories_monthly():
-    """Récupère les meilleures actualités des 30 derniers jours (Hacker News Algolia + Flux RSS)."""
+    """Récupère les meilleures actualités des 30 derniers jours (Hacker News Algolia + Flux Spécialisés)."""
     stories = []
     now = datetime.now(timezone.utc)
     cutoff_ts = int((now - timedelta(days=30)).timestamp())
@@ -52,7 +65,7 @@ def fetch_top_stories_monthly():
     except Exception as e:
         print(f"  ✗ Erreur Hacker News : {e}")
 
-    print("📰 2. Récupération des flux d'actualité tech...")
+    print("📰 2. Récupération des flux spécialisés (Cyber, Infra, Dev)...")
     cutoff_dt = now - timedelta(days=30)
     for source, url in FEEDS.items():
         try:
@@ -70,7 +83,7 @@ def fetch_top_stories_monthly():
                         "points": 0
                     })
                     count += 1
-                    if count >= 8:
+                    if count >= 6:
                         break
             print(f"  ✓ {source} : {count} articles récupérés.")
         except Exception as e:
@@ -79,7 +92,7 @@ def fetch_top_stories_monthly():
     return stories
 
 def generate_monthly_digest(stories):
-    """Demande à Gemini de créer une grande rétrospective mensuelle catégorisée."""
+    """Demande à Gemini de créer une grande rétrospective mensuelle catégorisée avec Cyber, Infra, Dev et IA."""
     if not stories:
         return None
 
@@ -89,10 +102,10 @@ def generate_monthly_digest(stories):
     current_month_name = MONTHS_FR[datetime.now().month]
     current_year = datetime.now().year
 
-    prompt = f"""Tu es le rédacteur en chef d'une revue technologique de référence.
+    prompt = f"""Tu es le rédacteur en chef d'une revue technologique et cybersécurité de référence.
 Nous réalisons le GRAND BILAN TECH MENSUEL ({current_month_name} {current_year}).
 
-Voici la sélection des sujets les plus marquants des 30 derniers jours :
+Voici la sélection des sujets des 30 derniers jours (Hacker News, CERT-FR, BleepingComputer, Cloudflare, Dev, InfoQ...) :
 {json.dumps(stories, ensure_ascii=False, indent=2)}
 
 Mission :
@@ -100,33 +113,51 @@ Rédige une rétrospective claire, passionnante et synthétique en français.
 Structure impérativement la réponse en un objet JSON avec cette structure exacte :
 
 {{
-  "intro": "Un paragraphe d'introduction résumant la grande tendance ou le fait marquant qui a dominé ce mois.",
+  "intro": "Un paragraphe d'introduction résumant les grandes tendances qui ont dominé ce mois.",
   "categories": [
     {{
-      "name": "🤖 Intelligence Artificielle & Recherche",
-      "color_hex": "8B5CF6",
+      "name": "🛡️ Cybersécurité & Failles Critiques",
+      "color_hex": "EF4444",
       "highlights": [
         {{
-          "title": "Nom de l'actu/modèle",
-          "summary": "- Qu'est-ce qui s'est passé\\n- Pourquoi c'est une avancée majeure",
+          "title": "Nom de l'incident / faille / alerte",
+          "summary": "- Faits clés\\n- Risques et mesures recommandées",
           "link": "URL d'origine"
         }}
       ]
     }},
     {{
-      "name": "💻 Dev, Open Source & Infrastructures",
+      "name": "☁️ Infrastructure, Cloud & DevOps",
       "color_hex": "3B82F6",
-      "highlights": [ ... ]
+      "highlights": [
+        {{
+          "title": "Nom du projet ou évolution infra",
+          "summary": "- Ce qui a changé\\n- Impact pour les sysadmins / devops",
+          "link": "URL d'origine"
+        }}
+      ]
     }},
     {{
-      "name": "🔒 Cybersécurité & Confidentialité",
-      "color_hex": "EF4444",
-      "highlights": [ ... ]
-    }},
-    {{
-      "name": "🌐 Business Tech, Hardware & Écosystème",
+      "name": "💻 Dev, Frameworks & Nouvelles Technos",
       "color_hex": "10B981",
-      "highlights": [ ... ]
+      "highlights": [
+        {{
+          "title": "Nom de la techno / release",
+          "summary": "- Nouveautés phares\\n- Ce que ça apporte aux développeurs",
+          "link": "URL d'origine"
+        }}
+      ]
+    }},
+    {{
+      "name": "🤖 Intelligence Artificielle & Recherche",
+      "color_hex": "8B5CF6",
+      "highlights": [
+        {{
+          "title": "Nom du modèle ou avancée",
+          "summary": "- Découverte ou sortie majeure\\n- Enjeux",
+          "link": "URL d'origine"
+        }}
+      ]
     }}
   ]
 }}
@@ -134,8 +165,8 @@ Structure impérativement la réponse en un objet JSON avec cette structure exac
 Consignes :
 - 1 à 2 'highlights' maximum par catégorie (uniquement les événements réellement majeurs).
 - Les liens doivent impérativement provenir de la liste fournie.
-- Les résumés doivent être analytiques et percutants en 2 bullet points courts.
-- Réponds UNIQUEMENT avec un JSON valide, sans balises de code Markdown."""
+- Les résumés doivent être percutants et clairs en 2 bullet points courts.
+- Réponds UNIQUEMENT avec un JSON valide, sans balises Markdown."""
 
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -163,20 +194,18 @@ def send_monthly_to_discord(digest):
     current_month = MONTHS_FR[datetime.now().month]
     current_year = datetime.now().year
 
-    # Embed 1 : En-tête et vue globale
     embeds = [{
-        "title": f"📚 LE GRAND RÉCAP TECH MENSUEL — {current_month.upper()} {current_year}",
+        "title": f"📚 LE GRAND RÉCAP TECH & CYBER — {current_month.upper()} {current_year}",
         "description": f"**Ce qui a marqué l'industrie ce mois-ci :**\n{digest.get('intro', '')}",
-        "color": 0xF59E0B, # Ambre doré
-        "footer": {"text": "Édition Mensuelle • Tech Watcher"}
+        "color": 0xF59E0B,
+        "footer": {"text": "Édition Mensuelle • Tech Watcher (Cyber • Infra • Dev • IA)"}
     }]
 
-    # Embeds suivants : Chaque catégorie thématique
     color_map = {
-        "8B5CF6": 0x8B5CF6,
-        "3B82F6": 0x3B82F6,
         "EF4444": 0xEF4444,
-        "10B981": 0x10B981
+        "3B82F6": 0x3B82F6,
+        "10B981": 0x10B981,
+        "8B5CF6": 0x8B5CF6
     }
 
     for cat in digest.get("categories", []):
@@ -194,9 +223,9 @@ def send_monthly_to_discord(digest):
             })
 
     payload = {
-        "username": "AI Monthly Digest",
+        "username": "AI Monthly Tech & Cyber",
         "avatar_url": "https://cdn-icons-png.flaticon.com/512/3281/3281323.png",
-        "content": f"🎆 **Rétrospective Tech Mensuelle ({current_month} {current_year})** disponible !",
+        "content": f"🎆 **Rétrospective Mensuelle ({current_month} {current_year})** disponible !",
         "embeds": embeds[:10]
     }
 
@@ -215,7 +244,7 @@ if __name__ == "__main__":
         exit(1)
 
     stories = fetch_top_stories_monthly()
-    print(f"-> {len(stories)} histoires collectées sur les 30 derniers jours.")
+    print(f"-> {len(stories)} histoires collectées.")
 
     digest = generate_monthly_digest(stories)
     send_monthly_to_discord(digest)
