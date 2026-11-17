@@ -36,6 +36,7 @@ MONTHS_FR = [
 
 FEEDS = {
     # 🛡️ Cybersécurité
+    "Le Monde Informatique (Sec)": "https://www.lemondeinformatique.fr/flux-rss/thematique/securite/rss.xml",
     "ZATAZ": "https://www.zataz.com/feed/",
     "InCyber": "https://incyber.org/feed/",
     "Undernews": "https://www.undernews.fr/feed",
@@ -47,6 +48,7 @@ FEEDS = {
     "SANS ISC": "https://isc.sans.edu/rssfeed.xml",
 
     # 🤖 Intelligence Artificielle
+    "Le Monde Informatique (IA)": "https://www.lemondeinformatique.fr/flux-rss/thematique/intelligence-artificielle/rss.xml",
     "ActuIA": "https://www.actuia.com/feed/",
     "Hugging Face Blog": "https://huggingface.co/blog/feed.xml",
     "Simon Willison (AI)": "https://simonwillison.net/atom/everything/",
@@ -56,6 +58,7 @@ FEEDS = {
     "TechCrunch AI": "https://techcrunch.com/category/artificial-intelligence/feed/",
 
     # ☁️ Infra & Cloud
+    "Le Monde Informatique (Cloud)": "https://www.lemondeinformatique.fr/flux-rss/thematique/cloud-computing/rss.xml",
     "Silicon.fr": "https://www.silicon.fr/feed",
     "The New Stack": "https://thenewstack.io/feed/",
     "Cloudflare Blog": "https://blog.cloudflare.com/rss/",
@@ -64,6 +67,7 @@ FEEDS = {
     "Netflix Tech": "https://netflixtechblog.com/feed",
 
     # 💻 Dev & Technos
+    "Le Monde Informatique (Dev)": "https://www.lemondeinformatique.fr/flux-rss/thematique/developpement/rss.xml",
     "Journal du Hacker": "https://www.journalduhacker.net/rss",
     "LinuxFR": "https://linuxfr.org/journaux.atom",
     "Phoronix": "https://www.phoronix.com/phoronix-rss.php",
@@ -76,6 +80,7 @@ FEEDS = {
 
     # 🌐 Tech générale
     "Le Monde Informatique": "https://www.lemondeinformatique.fr/flux-rss/thematique/toutes-les-actualites/rss.xml",
+    "Génération-NT": "https://www.generation-nt.com/export/rss.xml",
     "Next": "https://next.ink/feed/",
     "Korben": "https://korben.info/feed",
     "Numerama": "https://www.numerama.com/feed/",

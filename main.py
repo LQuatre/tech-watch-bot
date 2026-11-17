@@ -28,13 +28,14 @@ CANDIDATE_MODELS = [
     "gemini-3-flash"
 ]
 
-# 38 sources sélectionnées et testées (médias de référence français et internationaux)
+# 43 sources sélectionnées et testées (médias de référence français et internationaux)
 PILLARS = {
     "Tech Générale": {
         "emoji": "🟠",
         "color": 0xF59E0B, # Orange
         "feeds": {
             "Le Monde Informatique": "https://www.lemondeinformatique.fr/flux-rss/thematique/toutes-les-actualites/rss.xml",
+            "Génération-NT": "https://www.generation-nt.com/export/rss.xml",
             "Next": "https://next.ink/feed/",
             "Numerama": "https://www.numerama.com/feed/",
             "Korben": "https://korben.info/feed",
@@ -47,6 +48,7 @@ PILLARS = {
         "emoji": "🔴",
         "color": 0xEF4444, # Rouge
         "feeds": {
+            "Le Monde Informatique (Sec)": "https://www.lemondeinformatique.fr/flux-rss/thematique/securite/rss.xml",
             "ZATAZ": "https://www.zataz.com/feed/",
             "InCyber": "https://incyber.org/feed/",
             "Undernews": "https://www.undernews.fr/feed",
@@ -62,6 +64,7 @@ PILLARS = {
         "emoji": "🟣",
         "color": 0x8B5CF6, # Violet
         "feeds": {
+            "Le Monde Informatique (IA)": "https://www.lemondeinformatique.fr/flux-rss/thematique/intelligence-artificielle/rss.xml",
             "ActuIA": "https://www.actuia.com/feed/",
             "Hugging Face Blog": "https://huggingface.co/blog/feed.xml",
             "Simon Willison (AI)": "https://simonwillison.net/atom/everything/",
@@ -75,6 +78,7 @@ PILLARS = {
         "emoji": "🔵",
         "color": 0x3B82F6, # Bleu
         "feeds": {
+            "Le Monde Informatique (Cloud)": "https://www.lemondeinformatique.fr/flux-rss/thematique/cloud-computing/rss.xml",
             "Silicon.fr": "https://www.silicon.fr/feed",
             "The New Stack": "https://thenewstack.io/feed/",
             "Cloudflare Blog": "https://blog.cloudflare.com/rss/",
@@ -87,6 +91,7 @@ PILLARS = {
         "emoji": "🟢",
         "color": 0x10B981, # Vert
         "feeds": {
+            "Le Monde Informatique (Dev)": "https://www.lemondeinformatique.fr/flux-rss/thematique/developpement/rss.xml",
             "Journal du Hacker": "https://www.journalduhacker.net/rss",
             "LinuxFR": "https://linuxfr.org/journaux.atom",
             "Phoronix": "https://www.phoronix.com/phoronix-rss.php",
@@ -114,9 +119,9 @@ def clean_html(raw_html: str) -> str:
     return clean
 
 def fetch_all_pillars(max_hours: int = 24):
-    """Collecte jusqu'à 4 articles distincts par pilier parmi 38 sources."""
+    """Collecte jusqu'à 4 articles distincts par pilier parmi 43 sources."""
     structured = {}
-    print(f"📡 Collecte des articles sur 38 sources de référence...")
+    print(f"📡 Collecte des articles sur 43 sources de référence...")
 
     for pillar, conf in PILLARS.items():
         structured[pillar] = []
