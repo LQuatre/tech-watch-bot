@@ -48,10 +48,12 @@ FEEDS = {
     "Cloudflare Blog": "https://blog.cloudflare.com/rss/",
 
     # 💻 Dev & Technos
-    "PHP.net": "https://www.php.net/news.rss",
-    "Laravel News": "https://laravel-news.com/feed",
-    "InfoQ": "https://feed.infoq.com/",
+    "GitHub Blog": "https://github.blog/feed/",
     "The Changelog": "https://changelog.com/feed",
+    "Smashing Mag (Web/JS)": "https://www.smashingmagazine.com/feed/",
+    "Rust Blog": "https://blog.rust-lang.org/feed.xml",
+    "InfoQ": "https://feed.infoq.com/",
+    "Laravel News (PHP)": "https://laravel-news.com/feed",
 
     # 🌐 Tech générale
     "Next": "https://next.ink/feed/",

@@ -72,10 +72,12 @@ PILLARS = {
         "emoji": "🟢",
         "color": 0x10B981, # Vert
         "feeds": {
-            "PHP.net": "https://www.php.net/news.rss",
-            "Laravel News": "https://laravel-news.com/feed",
-            "InfoQ": "https://feed.infoq.com/",
-            "The Changelog": "https://changelog.com/feed"
+            "GitHub Blog": "https://github.blog/feed/",
+            "The Changelog": "https://changelog.com/feed",
+            "Smashing Mag (Web/JS)": "https://www.smashingmagazine.com/feed/",
+            "InfoQ (Architecture)": "https://feed.infoq.com/",
+            "Rust Blog": "https://blog.rust-lang.org/feed.xml",
+            "Laravel News (PHP)": "https://laravel-news.com/feed"
         }
     }
 }
@@ -85,7 +87,7 @@ DEFAULT_SUMMARIES = {
     "Cybersécurité": "Vigilance accrue sur les attaques ciblant les chaînes logistiques (supply chain) et les infrastructures industrielles/IoT, accompagnée de nouveaux bulletins critiques du CERT-FR.",
     "Intelligence Artificielle": "Course à l'efficacité énergétique, percée des moteurs d'inférence locale ultra-rapides et intégration d'agents autonomes dans les environnements de production.",
     "Infra & Cloud": "Modernisation des architectures Edge computing (WASM), optimisation des coûts cloud et résilience des clusters Kubernetes.",
-    "Dev & Frameworks": "Évolutions des runtimes modernes, adoption du Pipe operator sur PHP, accélération du tooling en Rust et nouvelles versions des frameworks web."
+    "Dev & Frameworks": "Actualités de l'écosystème dev : outillage open-source, nouveautés sur les runtimes web et frontend, évolutions du compilateur Rust et frameworks modernes."
 }
 
 def clean_html(raw_html: str) -> str:
@@ -129,10 +131,13 @@ def fetch_all_pillars(max_hours: int = 24):
                         }
                         if not pub or pub > cutoff:
                             recent_from_feed.append(item)
-                        elif len(recent_from_feed) == 0 and len(structured[pillar]) < 2:
+                        elif len(recent_from_feed) == 0:
                             recent_from_feed.append(item)
+                        # Max 1 article par source pour garantir une vraie diversité de sujets
+                        if len(recent_from_feed) >= 1:
+                            break
 
-                structured[pillar].extend(recent_from_feed[:3])
+                structured[pillar].extend(recent_from_feed[:1])
             except Exception as e:
                 print(f"  ✗ Erreur {source}: {e}")
 
