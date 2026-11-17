@@ -11,70 +11,70 @@ try:
 except ImportError:
     pass
 
-# Nettoyage des clés (retire les espaces ou guillemets accidentels)
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "").strip(' "\'\r\n\t')
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip(' "\'\r\n\t')
 
-# Sources RSS spécialisées par domaine
+# 19 Flux de référence couvrant les 5 grands piliers de la veille informatique
 FEEDS = {
+    # 🌐 Tech Générale & Écosystème (Hardware, Big Tech, Produits, Tendances)
+    "The Verge": ("https://www.theverge.com/rss/index.xml", "Tech Générale", "🌐"),
+    "TechCrunch": ("https://techcrunch.com/feed/", "Tech Générale", "🚀"),
+    "Numerama": ("https://www.numerama.com/feed/", "Tech Générale", "📱"),
+    "Next (Tech FR)": ("https://next.ink/feed/", "Tech Générale", "📰"),
+    "Korben": ("https://korben.info/feed", "Tech Générale", "🐧"),
+
+    # 🤖 Intelligence Artificielle & Modèles
+    "Hacker News (IA/Tech)": ("https://news.ycombinator.com/rss", "IA & Recherche", "🤖"),
+
     # 🛡️ Cybersécurité & Incidents Opérationnels
-    "ZATAZ (Cyber & Fuites)": "https://www.zataz.com/feed/",
-    "LeMagIT (Cyber Sécu)": "https://www.lemagit.fr/rss/Securite.xml",
-    "InCyber (Menaces & OT)": "https://incyber.org/feed/",
-    "The Hacker News (Cyber)": "https://feeds.feedburner.com/TheHackersNews",
-    "BleepingComputer (Cyber)": "https://www.bleepingcomputer.com/feed/",
-    "CERT-FR (Alertes Sécu)": "https://www.cert.ssi.gouv.fr/alerte/feed/",
+    "ZATAZ (Fuites & Piratages)": ("https://www.zataz.com/feed/", "Cybersécurité", "🛡️"),
+    "LeMagIT (Cyber Sécu)": ("https://www.lemagit.fr/rss/Securite.xml", "Cybersécurité", "🚨"),
+    "InCyber (Menaces & OT/IoT)": ("https://incyber.org/feed/", "Cybersécurité", "🔒"),
+    "The Hacker News": ("https://feeds.feedburner.com/TheHackersNews", "Cybersécurité", "⚠️"),
+    "BleepingComputer": ("https://www.bleepingcomputer.com/feed/", "Cybersécurité", "🛡️"),
+    "CERT-FR (Alertes Sécu)": ("https://www.cert.ssi.gouv.fr/alerte/feed/", "Cybersécurité", "⚡"),
 
     # ☁️ Infra & DevOps / Cloud
-    "Cloudflare Blog (Infra)": "https://blog.cloudflare.com/rss/",
-    "DevOps.com (Infra)": "https://devops.com/feed/",
+    "Cloudflare Blog": ("https://blog.cloudflare.com/rss/", "Infra & Cloud", "☁️"),
+    "DevOps.com": ("https://devops.com/feed/", "Infra & Cloud", "⚙️"),
 
     # 💻 Dev, Frameworks & Nouvelles Technos
-    "InfoQ (Dev & Arch)": "https://feed.infoq.com/",
-    "Changelog (Dev)": "https://changelog.com/feed",
-    "PHP Foundation (PHP)": "https://thephp.foundation/blog/feed.xml",
-    "Laravel News (PHP)": "https://feed.laravel-news.com/",
-    "Hacker News": "https://news.ycombinator.com/rss",
-
-    # 🌐 Généraliste Tech & Médias FR
-    "Next (Tech FR)": "https://next.ink/feed/",
-    "Korben": "https://korben.info/feed",
-    "Numerama": "https://www.numerama.com/feed/",
-    "The Verge": "https://www.theverge.com/rss/index.xml"
+    "PHP Foundation": ("https://thephp.foundation/blog/feed.xml", "Dev & Technos", "🐘"),
+    "Laravel News": ("https://feed.laravel-news.com/", "Dev & Technos", "⚡"),
+    "InfoQ (Architecture)": ("https://feed.infoq.com/", "Dev & Technos", "💻"),
+    "Changelog (Dev Tools)": ("https://changelog.com/feed", "Dev & Technos", "🛠️")
 }
 
 CATEGORY_COLORS = {
+    "Tech Générale": 0xF59E0B,   # Orange / Ambre (Hardware, Big Tech, Écosystème)
+    "IA & Recherche": 0x8B5CF6,  # Violet IA
     "Cybersécurité": 0xEF4444,   # Rouge sécurité
     "Infra & Cloud": 0x3B82F6,   # Bleu infra/cloud
-    "Dev & Technos": 0x10B981,   # Vert dev/code
-    "IA & Écosystème": 0x8B5CF6  # Violet IA
+    "Dev & Technos": 0x10B981    # Vert dev/code
 }
 
 def clean_html(raw_html: str) -> str:
-    """Retire les balises HTML des résumés."""
     clean = re.sub(r'<[^>]+>', '', raw_html or '')
     return ' '.join(clean.split())
 
 def fetch_recent_articles(max_hours: int = 24, limit_per_feed: int = 3):
-    """Récupère les articles récents des dernières 24 heures."""
     articles = []
     cutoff = datetime.now(timezone.utc) - timedelta(hours=max_hours)
 
-    print(f"📡 Analyse des flux spécialisés (dernières {max_hours} heures)...")
-
-    for source, url in FEEDS.items():
+    print(f"📡 Analyse des flux (dernières {max_hours} heures)...")
+    for source, (url, default_cat, emoji) in FEEDS.items():
         try:
             feed = feedparser.parse(url)
             count = 0
             for entry in feed.entries:
-                published = None
+                pub = None
                 if hasattr(entry, "published_parsed") and entry.published_parsed:
-                    published = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
-
-                if not published or published > cutoff:
+                    pub = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
+                if not pub or pub > cutoff:
                     snippet = clean_html(getattr(entry, "summary", ""))[:250]
                     articles.append({
                         "source": source,
+                        "default_cat": default_cat,
                         "title": entry.title,
                         "link": entry.link,
                         "snippet": snippet
@@ -82,15 +82,12 @@ def fetch_recent_articles(max_hours: int = 24, limit_per_feed: int = 3):
                     count += 1
                     if count >= limit_per_feed:
                         break
-            print(f"  ✓ {source} : {count} article(s)")
         except Exception as e:
             print(f"  ✗ Erreur sur {source}: {e}")
 
     return articles
 
 def discover_available_gemini_model():
-    """Interroge l'API pour lister les modèles réels autorisés et choisir le plus récent."""
-    print("🔍 Détection du modèle Gemini...")
     url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
     try:
         resp = requests.get(url, timeout=15)
@@ -101,60 +98,45 @@ def discover_available_gemini_model():
                 for m in models
                 if "generateContent" in m.get("supportedGenerationMethods", [])
             ]
-            print(f"  ✓ Modèles disponibles : {', '.join(supported)}")
             for pref in ["gemini-3.8-flash", "gemini-3.8-pro", "gemini-3-flash", "gemini-2.5-flash", "gemini-1.5-flash"]:
                 if pref in supported:
                     return pref
             for m in supported:
-                if "3.8-flash" in m or "3.8" in m:
+                if "3.8" in m:
                     return m
             return supported[0] if supported else "gemini-3.8-flash"
-        else:
-            print(f"  ⚠️ Erreur détection modèles ({resp.status_code}) : {resp.text}")
-    except Exception as e:
-        print(f"  ⚠️ Exception de détection : {e}")
-
+    except Exception:
+        pass
     return "gemini-3.8-flash"
 
 def summarize_with_gemini(articles):
-    """Sélectionne et équilibre la veille quotidienne entre Cyber, Infra, Dev et IA."""
     if not articles:
         return []
 
     model_to_use = discover_available_gemini_model()
-    print(f"🧠 Analyse et catégorisation avec {model_to_use}...")
+    print(f"🧠 Synthèse équilibrée avec {model_to_use}...")
 
-    prompt = f"""Tu es un analyste senior en veille informatique.
-Voici les articles tech collectés ces dernières 24h à partir de flux spécialisés :
+    prompt = f"""Tu es un analyste senior en veille informatique et technologique.
+Voici les articles collectés ces dernières 24h :
 {json.dumps(articles, ensure_ascii=False, indent=2)}
 
 Mission :
-Sélectionne les 5 ou 6 actualités les plus percutantes et équilibre impérativement les thématiques suivantes :
-1. Au moins 1 à 2 sujets majeurs en Cybersécurité : privilégie les incidents réels et attaques opérationnelles (sabotage industriel/IoT, fuites de données d'envergure, ransomwares marquants, failles 0-day).
-2. Au moins 1 sujet majeur en Infra / DevOps / Cloud (conteneurs, réseau, cloud, Linux, pannes d'architecture).
-3. Au moins 1 sujet majeur en Dev / Frameworks / Technos (PHP, Rust, JS/TS, Python, nouveaux outils dev).
-4. Le reste sur l'IA ou les grandes actualités de l'écosystème numérique.
+Sélectionne 7 à 8 actualités majeures et équilibre IMPÉRATIVEMENT les 5 piliers suivants :
+1. "Tech Générale" : Au moins 1 à 2 sujets sur l'écosystème tech global, matériel, Big Tech, ou société numérique (The Verge, TechCrunch, Numerama, Korben, etc.).
+2. "IA & Recherche" : Au moins 1 sujet majeur en Intelligence Artificielle (nouveaux modèles, releases, recherche).
+3. "Cybersécurité" : Au moins 1 à 2 sujets sur les cyberattaques réelles, fuites de données ou failles critiques.
+4. "Infra & Cloud" : Au moins 1 sujet sur le réseau, serveurs, conteneurs ou cloud.
+5. "Dev & Technos" : Au moins 1 sujet sur le dev, les frameworks (PHP, JS, Rust, etc.) et outils open-source.
 
-Pour chaque actualité sélectionnée, produis un objet JSON :
-- "category": L'une de ces 4 catégories exactes : "Cybersécurité", "Infra & Cloud", "Dev & Technos", ou "IA & Écosystème"
+Pour chaque actualité, produis un objet JSON :
+- "category": L'une de ces 5 catégories exactes : "Tech Générale", "IA & Recherche", "Cybersécurité", "Infra & Cloud", ou "Dev & Technos"
 - "title": Titre accrocheur et précis en français
-- "summary": 2 ou 3 puces concises (commençant par "- ") résumant les faits clés et les implications
+- "summary": 2 puces concises (commençant par "- ") résumant les faits clés
 - "link": L'URL originale de l'article fournie dans la liste
 - "source": Le nom de la source originale
-- "emoji": Emoji adapté (ex: 🔒, 🛡️, ☁️, ⚙️, 💻, 🤖)
+- "emoji": Emoji adapté (ex: 🌐, 🤖, 🛡️, ☁️, 💻)
 
-IMPORTANT : Tu dois répondre UNIQUEMENT avec un tableau JSON valide au format :
-[
-  {{
-    "category": "Cybersécurité",
-    "title": "...",
-    "summary": "- Point 1\\n- Point 2",
-    "link": "...",
-    "source": "...",
-    "emoji": "🛡️"
-  }}
-]
-Ne mets aucun texte avant ou après le tableau JSON."""
+Format de réponse requis : UNIQUEMENT un tableau JSON valide."""
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_to_use}:generateContent?key={GEMINI_API_KEY}"
     payload = {
@@ -166,77 +148,64 @@ Ne mets aucun texte avant ou après le tableau JSON."""
     }
 
     try:
-        response = requests.post(url, json=payload, timeout=30)
-        if response.status_code != 200:
-            print(f"❌ Erreur Gemini ({response.status_code}) : {response.text}")
-            raise ValueError(f"HTTP {response.status_code}")
-
+        response = requests.post(url, json=payload, timeout=35)
+        response.raise_for_status()
         raw_text = response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
         if raw_text.startswith("```"):
             raw_text = re.sub(r'^```(json)?\s*', '', raw_text)
             raw_text = re.sub(r'\s*```$', '', raw_text)
-
         return json.loads(raw_text)
     except Exception as e:
-        print(f"⚠️ Bascule vers les articles bruts suite à erreur: {e}")
+        print(f"⚠️ Erreur Gemini: {e}")
         return [{
-            "category": "Dev & Technos",
+            "category": art.get("default_cat", "Tech Générale"),
             "title": art["title"],
-            "summary": art["snippet"] or "Pas de description disponible.",
+            "summary": art["snippet"] or "Détails dans l'article.",
             "link": art["link"],
             "source": art["source"],
             "emoji": "📰"
-        } for art in articles[:5]]
+        } for art in articles[:7]]
 
 def send_to_discord(curated_news):
-    """Envoie les actualités sur Discord avec un code couleur par catégorie."""
     if not curated_news:
-        print("ℹ️ Aucune actualité à poster.")
         return
 
     today = datetime.now().strftime("%d/%m/%Y")
     embeds = []
 
     for item in curated_news[:10]:
-        cat = item.get("category", "Dev & Technos")
-        color = CATEGORY_COLORS.get(cat, 0x38BDF8)
+        cat = item.get("category", "Tech Générale")
+        color = CATEGORY_COLORS.get(cat, 0xF59E0B)
 
         embeds.append({
-            "title": f"{item.get('emoji', '📌')} [{cat}] {item.get('title', 'Actualité')}",
+            "title": f"{item.get('emoji', '📌')} [{cat}] {item.get('title')}",
             "url": item.get("link"),
             "description": item.get("summary", ""),
-            "footer": {"text": f"Source : {item.get('source', 'Web')} • {cat}"},
+            "footer": {"text": f"Source : {item.get('source')} • {cat}"},
             "color": color
         })
 
     payload = {
-        "username": "Tech Watcher (Cyber • Infra • Dev • IA)",
+        "username": "AI Tech Watcher",
         "avatar_url": "https://cdn-icons-png.flaticon.com/512/4712/4712109.png",
-        "content": f"⚡ **Veille Tech & Sécu du {today}** — *Le digest quotidien Cyber, Infra, Dev & IA :*",
+        "content": f"⚡ **Veille Tech Complète du {today}** — *Le digest quotidien en 5 piliers :*",
         "embeds": embeds
     }
 
     try:
         resp = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=15)
         if resp.status_code in (200, 204):
-            print("✅ Veille spécialisée envoyée sur Discord avec succès !")
+            print("✅ Digest complet envoyé sur Discord !")
         else:
-            print(f"❌ Erreur Webhook Discord ({resp.status_code}) : {resp.text}")
+            print(f"❌ Erreur Webhook ({resp.status_code}) : {resp.text}")
     except Exception as e:
-        print(f"❌ Erreur réseau lors de l'envoi : {e}")
+        print(f"❌ Erreur envoi : {e}")
 
 if __name__ == "__main__":
-    if not DISCORD_WEBHOOK_URL:
-        print("❌ Erreur : DISCORD_WEBHOOK_URL requis.")
-        exit(1)
-    if not GEMINI_API_KEY:
-        print("❌ Erreur : GEMINI_API_KEY requis.")
+    if not DISCORD_WEBHOOK_URL or not GEMINI_API_KEY:
+        print("❌ Clés d'environnement manquantes.")
         exit(1)
 
     news = fetch_recent_articles()
-    print(f"-> Total : {len(news)} articles collectés.")
-
     curated = summarize_with_gemini(news)
-    print(f"-> Total : {len(curated)} actus sélectionnées.")
-
     send_to_discord(curated)

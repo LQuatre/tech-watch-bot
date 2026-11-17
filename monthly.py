@@ -155,6 +155,17 @@ Structure impérativement la réponse en un objet JSON avec cette structure exac
   "intro": "Un paragraphe d'introduction résumant les grandes tendances qui ont dominé ce mois.",
   "categories": [
     {{
+      "name": "🌐 Tech Générale, Hardware & Écosystème",
+      "color_hex": "F59E0B",
+      "highlights": [
+        {{
+          "title": "Nom de l'actu grand public / Big Tech",
+          "summary": "- Faits clés\\n- Enjeux pour l'industrie",
+          "link": "URL d'origine"
+        }}
+      ]
+    }},
+    {{
       "name": "🛡️ Cybersécurité & Failles Critiques",
       "color_hex": "EF4444",
       "highlights": [
@@ -249,6 +260,7 @@ def send_monthly_to_discord(digest):
     }]
 
     color_map = {
+        "F59E0B": 0xF59E0B,
         "EF4444": 0xEF4444,
         "3B82F6": 0x3B82F6,
         "10B981": 0x10B981,
