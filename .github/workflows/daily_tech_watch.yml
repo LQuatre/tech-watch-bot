@@ -1,0 +1,31 @@
+name: Daily AI Tech Watch
+
+on:
+  schedule:
+    # Tous les jours à 7h00 UTC (8h00 en heure d'hiver, 9h00 en été en France)
+    - cron: '0 7 * * *'
+  # Permet d'exécuter manuellement le workflow depuis l'onglet Actions sur GitHub
+  workflow_dispatch:
+
+jobs:
+  run-tech-watch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Configurer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Lancer la veille et publier sur Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python main.py
