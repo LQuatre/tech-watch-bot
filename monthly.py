@@ -172,40 +172,45 @@ def generate_monthly_digest(stories):
     current_month_name = MONTHS_FR[datetime.now().month]
     current_year = datetime.now().year
 
-    prompt = f"""Tu es le rédacteur en chef d'une revue tech et cybersécurité.
+    prompt = f"""Tu es le rédacteur en chef d'une prestigieuse revue tech et cybersécurité francophone.
 Nous réalisons le GRAND BILAN MENSUEL ({current_month_name} {current_year}).
-Voici les sujets marquants :
+Voici une sélection des sujets les plus marquants des 30 derniers jours :
 {json.dumps(stories[:50], ensure_ascii=False, indent=2)}
 
-Rédige une rétrospective synthétique en français.
+Mission :
+Rédige une grande rétrospective mensuelle 100% EN FRANÇAIS IMPECCABLE, riche, structurée et captivante.
 Structure JSON exacte :
 {{
-  "intro": "2 phrases résumant la grande tendance du mois.",
+  "intro": "3 phrases percutantes résumant les grandes tendances et les faits majeurs qui ont transformé l'industrie ce mois-ci.",
+  "top_event": {{
+    "title": "L'événement numéro 1 du mois",
+    "summary": "2 phrases en français expliquant pourquoi cet événement a marqué toute l'industrie."
+  }},
   "categories": [
     {{
-      "name": "🌐 Tech Générale & Écosystème",
+      "name": "🟠 Tech Générale & Écosystème",
       "color_hex": "F59E0B",
-      "highlights": [{{"title": "...", "summary": "- Point 1\\n- Point 2", "link": "..."}}]
+      "highlights": [{{"title": "Titre traduit en français", "summary": "- Point 1 en français\\n- Point 2 en français", "link": "..."}}]
     }},
     {{
-      "name": "🛡️ Cybersécurité & Failles Critiques",
+      "name": "🔴 Cybersécurité & Vulnérabilités Majeures",
       "color_hex": "EF4444",
-      "highlights": [{{"title": "...", "summary": "- Point 1\\n- Point 2", "link": "..."}}]
+      "highlights": [{{"title": "Titre traduit en français", "summary": "- Point 1 en français\\n- Point 2 en français", "link": "..."}}]
     }},
     {{
-      "name": "☁️ Infrastructure & Cloud",
-      "color_hex": "3B82F6",
-      "highlights": [{{"title": "...", "summary": "- Point 1\\n- Point 2", "link": "..."}}]
-    }},
-    {{
-      "name": "💻 Dev & Frameworks",
-      "color_hex": "10B981",
-      "highlights": [{{"title": "...", "summary": "- Point 1\\n- Point 2", "link": "..."}}]
-    }},
-    {{
-      "name": "🤖 Intelligence Artificielle",
+      "name": "🟣 Intelligence Artificielle & Modèles",
       "color_hex": "8B5CF6",
-      "highlights": [{{"title": "...", "summary": "- Point 1\\n- Point 2", "link": "..."}}]
+      "highlights": [{{"title": "Titre traduit en français", "summary": "- Point 1 en français\\n- Point 2 en français", "link": "..."}}]
+    }},
+    {{
+      "name": "🔵 Infrastructure & Cloud",
+      "color_hex": "3B82F6",
+      "highlights": [{{"title": "Titre traduit en français", "summary": "- Point 1 en français\\n- Point 2 en français", "link": "..."}}]
+    }},
+    {{
+      "name": "🟢 Dev, Langages & Open Source",
+      "color_hex": "10B981",
+      "highlights": [{{"title": "Titre traduit en français", "summary": "- Point 1 en français\\n- Point 2 en français", "link": "..."}}]
     }}
   ]
 }}"""
@@ -219,12 +224,19 @@ def send_monthly_to_discord(digest):
     current_month = MONTHS_FR[datetime.now().month]
     current_year = datetime.now().year
 
-    embeds = [{
+    top_event = digest.get("top_event", {})
+    top_event_text = ""
+    if top_event and top_event.get("title"):
+        top_event_text = f"\n\n🏆 **L'Événement Majeur du Mois :** {top_event.get('title')}\n↳ {top_event.get('summary', '')}"
+
+    intro_embed = {
         "title": f"📚 LE GRAND RÉCAP TECH & CYBER — {current_month.upper()} {current_year}",
-        "description": f"**Ce qui a marqué l'industrie ce mois-ci :**\n{digest.get('intro', '')}",
-        "color": 0xF59E0B,
-        "footer": {"text": "Édition Mensuelle • Tech Watcher"}
-    }]
+        "description": f"**Ce qui a transformé l'industrie ce mois-ci :**\n{digest.get('intro', '')}{top_event_text}",
+        "color": 0x6366F1,
+        "footer": {"text": "Édition Mensuelle Exécutive • Bilan 30 Jours"}
+    }
+
+    embeds = [intro_embed]
 
     color_map = {
         "F59E0B": 0xF59E0B,
@@ -244,28 +256,43 @@ def send_monthly_to_discord(digest):
             color_int = color_map.get(hex_color, 0x3B82F6)
             embeds.append({
                 "title": cat.get("name"),
-                "description": field_text.strip()[:1000],
-                "color": color_int
+                "description": field_text.strip()[:1500],
+                "color": color_int,
+                "footer": {"text": f"Bilan Mensuel • {cat.get('name')}"}
             })
 
-    # Découpage en 2 messages si plus de 3 embeds pour ne pas dépasser 6000 chars
-    chunks = [embeds[:3], embeds[3:]]
-    for idx, chunk in enumerate(chunks, 1):
+    # Découpage équilibré en 2 parties bien calibrées (<5500 caractères)
+    # Partie 1 : Intro / Top Event + Tech Générale + Cybersécurité (3 embeds, ~2500 chars)
+    # Partie 2 : IA + Cloud + Dev (3 embeds, ~2500 chars)
+    chunks = [
+        ("Partie 1/2 — Bilan Macro, Tech & Cybersécurité", embeds[:3]),
+        ("Partie 2/2 — IA, Infrastructure Cloud & Dev", embeds[3:])
+    ]
+
+    for part_label, chunk in chunks:
         if not chunk:
             continue
+
+        # Sécurité anti-dépassement Discord (6000 chars max)
+        total_chars = sum(len(e.get("title", "")) + len(e.get("description", "")) + len(e.get("footer", {}).get("text", "")) for e in chunk)
+        if total_chars > 5500:
+            for e in chunk:
+                if len(e.get("description", "")) > 1800:
+                    e["description"] = e["description"][:1800] + "..."
+
         payload = {
-            "username": "AI Monthly Tech & Cyber",
+            "username": "Le Grand Journal Tech & Cyber",
             "avatar_url": "https://cdn-icons-png.flaticon.com/512/3281/3281323.png",
-            "content": f"🎆 **Rétrospective Mensuelle ({current_month} {current_year})** — Partie {idx}/2 :",
+            "content": f"🎆 **Le Grand Bilan Mensuel ({current_month} {current_year})** — {part_label} :",
             "embeds": chunk
         }
         try:
             resp = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=20)
             if resp.status_code in (200, 204):
-                print(f"✅ Rétrospective partie {idx} postée sur Discord !")
+                print(f"✅ Rétrospective {part_label} postée sur Discord !")
             else:
                 print(f"❌ Erreur Webhook ({resp.status_code}) : {resp.text}")
-            time.sleep(1)
+            time.sleep(1.5)
         except Exception as e:
             print(f"❌ Erreur réseau: {e}")
 
