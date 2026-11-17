@@ -17,7 +17,10 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip(' "\'\r\n\t')
 
 # Sources RSS spécialisées par domaine
 FEEDS = {
-    # 🛡️ Cybersécurité
+    # 🛡️ Cybersécurité & Incidents Opérationnels
+    "ZATAZ (Cyber & Fuites)": "https://www.zataz.com/feed/",
+    "LeMagIT (Cyber Sécu)": "https://www.lemagit.fr/rss/Securite.xml",
+    "InCyber (Menaces & OT)": "https://incyber.org/feed/",
     "The Hacker News (Cyber)": "https://feeds.feedburner.com/TheHackersNews",
     "BleepingComputer (Cyber)": "https://www.bleepingcomputer.com/feed/",
     "CERT-FR (Alertes Sécu)": "https://www.cert.ssi.gouv.fr/alerte/feed/",
@@ -29,9 +32,12 @@ FEEDS = {
     # 💻 Dev, Frameworks & Nouvelles Technos
     "InfoQ (Dev & Arch)": "https://feed.infoq.com/",
     "Changelog (Dev)": "https://changelog.com/feed",
+    "PHP Foundation (PHP)": "https://thephp.foundation/blog/feed.xml",
+    "Laravel News (PHP)": "https://feed.laravel-news.com/",
     "Hacker News": "https://news.ycombinator.com/rss",
 
     # 🌐 Généraliste Tech & Médias FR
+    "Next (Tech FR)": "https://next.ink/feed/",
     "Korben": "https://korben.info/feed",
     "Numerama": "https://www.numerama.com/feed/",
     "The Verge": "https://www.theverge.com/rss/index.xml"
@@ -124,10 +130,10 @@ Voici les articles tech collectés ces dernières 24h à partir de flux spécial
 
 Mission :
 Sélectionne les 5 ou 6 actualités les plus percutantes et équilibre impérativement les thématiques suivantes :
-1. Au moins 1 sujet majeur en Cybersécurité (faille 0-day, alerte critique, incident cyber, malware).
-2. Au moins 1 sujet majeur en Infra / DevOps / Cloud (conteneurs, réseau, cloud, Linux, architecture système).
-3. Au moins 1 sujet majeur en Dev / Frameworks / Technos (mise à jour d'un langage/outil, nouvel outil dev).
-4. Le reste sur l'IA ou les actualités tech globales.
+1. Au moins 1 à 2 sujets majeurs en Cybersécurité : privilégie les incidents réels et attaques opérationnelles (sabotage industriel/IoT, fuites de données d'envergure, ransomwares marquants, failles 0-day).
+2. Au moins 1 sujet majeur en Infra / DevOps / Cloud (conteneurs, réseau, cloud, Linux, pannes d'architecture).
+3. Au moins 1 sujet majeur en Dev / Frameworks / Technos (PHP, Rust, JS/TS, Python, nouveaux outils dev).
+4. Le reste sur l'IA ou les grandes actualités de l'écosystème numérique.
 
 Pour chaque actualité sélectionnée, produis un objet JSON :
 - "category": L'une de ces 4 catégories exactes : "Cybersécurité", "Infra & Cloud", "Dev & Technos", ou "IA & Écosystème"

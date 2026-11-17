@@ -22,7 +22,10 @@ MONTHS_FR = [
 
 # Sources RSS spécialisées par domaine pour le récapitulatif mensuel
 FEEDS = {
-    # 🛡️ Cybersécurité
+    # 🛡️ Cybersécurité & Incidents Opérationnels
+    "ZATAZ (Cyber & Fuites)": "https://www.zataz.com/feed/",
+    "LeMagIT (Cyber Sécu)": "https://www.lemagit.fr/rss/Securite.xml",
+    "InCyber (Menaces & OT)": "https://incyber.org/feed/",
     "The Hacker News (Cyber)": "https://feeds.feedburner.com/TheHackersNews",
     "BleepingComputer (Cyber)": "https://www.bleepingcomputer.com/feed/",
     "CERT-FR (Alertes Sécu)": "https://www.cert.ssi.gouv.fr/alerte/feed/",
@@ -34,8 +37,11 @@ FEEDS = {
     # 💻 Dev & Technos
     "InfoQ (Dev & Arch)": "https://feed.infoq.com/",
     "Changelog (Dev)": "https://changelog.com/feed",
+    "PHP Foundation (PHP)": "https://thephp.foundation/blog/feed.xml",
+    "Laravel News (PHP)": "https://feed.laravel-news.com/",
 
     # 🌐 Tech généraliste
+    "Next (Tech FR)": "https://next.ink/feed/",
     "Korben": "https://korben.info/feed",
     "Numerama": "https://www.numerama.com/feed/",
     "The Verge": "https://www.theverge.com/rss/index.xml"
@@ -142,6 +148,7 @@ Voici la sélection des sujets des 30 derniers jours (Hacker News, CERT-FR, Blee
 
 Mission :
 Rédige une rétrospective claire, passionnante et synthétique en français.
+Accorde une attention particulière aux cyberattaques et sabotages opérationnels réels, aux incidents d'infrastructure, aux sorties de frameworks/langages (PHP, Rust, etc.) et aux avancées IA.
 Structure impérativement la réponse en un objet JSON avec cette structure exacte :
 
 {{
