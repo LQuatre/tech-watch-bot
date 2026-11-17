@@ -19,11 +19,18 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-# Priorité absolue à 3.8 dès qu'il a du quota disponible, avec repli instantané sur 3.6 si le quota de 3.8 est atteint
+# Modèles calibrés exactement sur les quotas réels de ton compte Google AI Studio :
+# 1. Gemini 3.8 Flash (Priorité n°1, quota 20 RPD)
+# 2. Gemini 3.6 Flash (Secours n°1, quota 20 RPD)
+# 3. Gemini 3.5 Flash Lite (Secours géant, quota 500 RPD !)
+# 4. Gemini 3.1 Flash Lite (Secours géant, quota 500 RPD)
+# 5. Gemini 3 Flash (Secours de réserve, quota 20 RPD)
 CANDIDATE_MODELS = [
     "gemini-3.8-flash",
     "gemini-3.6-flash",
-    "gemini-3.7-flash"
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-3-flash"
 ]
 
 # Les 5 piliers avec sources vérifiées et actives
