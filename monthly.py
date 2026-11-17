@@ -11,16 +11,9 @@ try:
 except ImportError:
     pass
 
-DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-
-# Modèles Gemini testés dans l'ordre pour éviter toute erreur 404
-GEMINI_MODELS = [
-    "gemini-1.5-flash",
-    "gemini-2.0-flash-exp",
-    "gemini-1.5-pro",
-    "gemini-2.5-flash"
-]
+# Nettoyage des clés (retire les espaces ou guillemets accidentels lors du copier-coller)
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "").strip(' "\'\r\n\t')
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip(' "\'\r\n\t')
 
 MONTHS_FR = [
     "", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -100,38 +93,39 @@ def fetch_top_stories_monthly():
 
     return stories
 
-def call_gemini(prompt: str):
-    """Appelle Gemini avec bascule automatique de modèle pour éviter les 404."""
-    for model in GEMINI_MODELS:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {
-                "temperature": 0.2,
-                "responseMimeType": "application/json"
-            }
-        }
-        try:
-            print(f"Essai de génération avec {model}...")
-            resp = requests.post(url, json=payload, timeout=45)
-            if resp.status_code == 200:
-                print(f"✓ Succès avec le modèle {model} !")
-                return resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-            elif resp.status_code == 404:
-                print(f"  ↳ Modèle {model} non disponible (404), essai du modèle suivant...")
-                continue
-            else:
-                print(f"  ↳ Erreur Gemini ({resp.status_code}) avec {model}: {resp.text}")
-        except Exception as e:
-            print(f"  ↳ Exception avec {model}: {e}")
-    return None
+def discover_available_gemini_model():
+    """Interroge l'API pour lister les modèles réels autorisés pour cette clé."""
+    print("🔍 Vérification de la clé API et détection des modèles disponibles...")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
+    try:
+        resp = requests.get(url, timeout=15)
+        if resp.status_code == 200:
+            models = resp.json().get("models", [])
+            supported = [
+                m["name"].replace("models/", "")
+                for m in models
+                if "generateContent" in m.get("supportedGenerationMethods", [])
+            ]
+            print(f"  ✓ Modèles autorisés trouvés ({len(supported)}) : {', '.join(supported[:6])}")
+            for pref in ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro", "gemini-2.0-flash-exp", "gemini-pro"]:
+                if pref in supported:
+                    return pref
+            return supported[0] if supported else "gemini-1.5-flash"
+        else:
+            print(f"  ❌ Erreur Google API ({resp.status_code}) : {resp.text}")
+    except Exception as e:
+        print(f"  ❌ Exception de connexion à Google API : {e}")
+
+    return "gemini-1.5-flash"
 
 def generate_monthly_digest(stories):
     """Demande à Gemini de créer une grande rétrospective mensuelle catégorisée avec Cyber, Infra, Dev et IA."""
     if not stories:
         return None
 
-    print("🧠 3. Analyse approfondie et rétrospective par Gemini...")
+    model_to_use = discover_available_gemini_model()
+    print(f"🧠 3. Analyse approfondie et rétrospective avec {model_to_use}...")
+
     current_month_name = MONTHS_FR[datetime.now().month]
     current_year = datetime.now().year
 
@@ -201,15 +195,26 @@ Consignes :
 - Les résumés doivent être percutants et clairs en 2 bullet points courts.
 - Réponds UNIQUEMENT avec un JSON valide, sans balises Markdown."""
 
-    raw_text = call_gemini(prompt)
-    if not raw_text:
-        return None
-
-    if raw_text.startswith("```"):
-        raw_text = re.sub(r'^```(json)?\s*', '', raw_text)
-        raw_text = re.sub(r'\s*```$', '', raw_text)
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_to_use}:generateContent?key={GEMINI_API_KEY}"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.2,
+            "responseMimeType": "application/json"
+        }
+    }
 
     try:
+        resp = requests.post(url, json=payload, timeout=60)
+        if resp.status_code != 200:
+            print(f"❌ Réponse Gemini ({resp.status_code}) : {resp.text}")
+            return None
+
+        raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+        if raw_text.startswith("```"):
+            raw_text = re.sub(r'^```(json)?\s*', '', raw_text)
+            raw_text = re.sub(r'\s*```$', '', raw_text)
+
         return json.loads(raw_text)
     except Exception as e:
         print(f"❌ Erreur lors du parsing JSON Gemini : {e}")
@@ -269,8 +274,11 @@ def send_monthly_to_discord(digest):
         print(f"❌ Erreur réseau Discord : {e}")
 
 if __name__ == "__main__":
-    if not DISCORD_WEBHOOK_URL or not GEMINI_API_KEY:
-        print("❌ Clés d'environnement manquantes.")
+    if not DISCORD_WEBHOOK_URL:
+        print("❌ DISCORD_WEBHOOK_URL manquant.")
+        exit(1)
+    if not GEMINI_API_KEY:
+        print("❌ GEMINI_API_KEY manquant.")
         exit(1)
 
     stories = fetch_top_stories_monthly()

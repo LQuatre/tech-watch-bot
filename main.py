@@ -11,16 +11,9 @@ try:
 except ImportError:
     pass
 
-DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-
-# Modèles Gemini testés dans l'ordre (gemini-1.5-flash est le modèle standard universellement supporté)
-GEMINI_MODELS = [
-    "gemini-1.5-flash",
-    "gemini-2.0-flash-exp",
-    "gemini-1.5-pro",
-    "gemini-2.5-flash"
-]
+# Nettoyage des clés (retire les espaces ou guillemets accidentels lors du copier-coller)
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "").strip(' "\'\r\n\t')
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip(' "\'\r\n\t')
 
 # Sources RSS spécialisées par domaine
 FEEDS = {
@@ -89,38 +82,39 @@ def fetch_recent_articles(max_hours: int = 24, limit_per_feed: int = 3):
 
     return articles
 
-def call_gemini(prompt: str):
-    """Appelle l'API Gemini avec bascule automatique entre les versions en cas de 404."""
-    for model in GEMINI_MODELS:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {
-                "temperature": 0.2,
-                "responseMimeType": "application/json"
-            }
-        }
-        try:
-            print(f"Essai avec le modèle {model}...")
-            resp = requests.post(url, json=payload, timeout=35)
-            if resp.status_code == 200:
-                print(f"✓ Réponse obtenue avec succès via {model} !")
-                return resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-            elif resp.status_code == 404:
-                print(f"  ↳ Modèle {model} non disponible (404), tentative avec le suivant...")
-                continue
-            else:
-                print(f"  ↳ Erreur Gemini ({resp.status_code}) avec {model}: {resp.text}")
-        except Exception as e:
-            print(f"  ↳ Exception avec {model}: {e}")
-    return None
+def discover_available_gemini_model():
+    """Interroge l'API pour lister les modèles réels autorisés pour cette clé."""
+    print("🔍 Vérification de la clé API et détection des modèles disponibles...")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
+    try:
+        resp = requests.get(url, timeout=15)
+        if resp.status_code == 200:
+            models = resp.json().get("models", [])
+            supported = [
+                m["name"].replace("models/", "")
+                for m in models
+                if "generateContent" in m.get("supportedGenerationMethods", [])
+            ]
+            print(f"  ✓ Modèles autorisés trouvés ({len(supported)}) : {', '.join(supported[:6])}")
+            for pref in ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro", "gemini-2.0-flash-exp", "gemini-pro"]:
+                if pref in supported:
+                    return pref
+            return supported[0] if supported else "gemini-1.5-flash"
+        else:
+            print(f"  ❌ Erreur Google API ({resp.status_code}) : {resp.text}")
+    except Exception as e:
+        print(f"  ❌ Exception de connexion à Google API : {e}")
+
+    return "gemini-1.5-flash"
 
 def summarize_with_gemini(articles):
     """Sélectionne et équilibre la veille quotidienne entre Cyber, Infra, Dev et IA."""
     if not articles:
         return []
 
-    print("🧠 Analyse et catégorisation par Gemini...")
+    model_to_use = discover_available_gemini_model()
+    print(f"🧠 Analyse et catégorisation avec {model_to_use}...")
+
     prompt = f"""Tu es un analyste senior en veille informatique.
 Voici les articles tech collectés ces dernières 24h à partir de flux spécialisés :
 {json.dumps(articles, ensure_ascii=False, indent=2)}
@@ -153,27 +147,29 @@ IMPORTANT : Tu dois répondre UNIQUEMENT avec un tableau JSON valide au format :
 ]
 Ne mets aucun texte avant ou après le tableau JSON."""
 
-    raw_text = call_gemini(prompt)
-    if not raw_text:
-        print("⚠️ Aucun modèle Gemini n'a répondu. Bascule vers les articles bruts.")
-        return [{
-            "category": "Dev & Technos",
-            "title": art["title"],
-            "summary": art["snippet"] or "Pas de description disponible.",
-            "link": art["link"],
-            "source": art["source"],
-            "emoji": "📰"
-        } for art in articles[:5]]
-
-    # Nettoyage d'éventuels backticks markdown
-    if raw_text.startswith("```"):
-        raw_text = re.sub(r'^```(json)?\s*', '', raw_text)
-        raw_text = re.sub(r'\s*```$', '', raw_text)
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_to_use}:generateContent?key={GEMINI_API_KEY}"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.2,
+            "responseMimeType": "application/json"
+        }
+    }
 
     try:
+        response = requests.post(url, json=payload, timeout=30)
+        if response.status_code != 200:
+            print(f"❌ Erreur Gemini ({response.status_code}) : {response.text}")
+            raise ValueError(f"HTTP {response.status_code}")
+
+        raw_text = response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+        if raw_text.startswith("```"):
+            raw_text = re.sub(r'^```(json)?\s*', '', raw_text)
+            raw_text = re.sub(r'\s*```$', '', raw_text)
+
         return json.loads(raw_text)
     except Exception as e:
-        print(f"⚠️ Erreur de parsing JSON ({e}). Texte brut: {raw_text[:200]}")
+        print(f"⚠️ Bascule vers les articles bruts suite à erreur: {e}")
         return [{
             "category": "Dev & Technos",
             "title": art["title"],
@@ -221,8 +217,11 @@ def send_to_discord(curated_news):
         print(f"❌ Erreur réseau lors de l'envoi : {e}")
 
 if __name__ == "__main__":
-    if not DISCORD_WEBHOOK_URL or not GEMINI_API_KEY:
-        print("❌ Erreur : DISCORD_WEBHOOK_URL et GEMINI_API_KEY requis.")
+    if not DISCORD_WEBHOOK_URL:
+        print("❌ Erreur : DISCORD_WEBHOOK_URL requis.")
+        exit(1)
+    if not GEMINI_API_KEY:
+        print("❌ Erreur : GEMINI_API_KEY requis.")
         exit(1)
 
     news = fetch_recent_articles()
