@@ -328,23 +328,27 @@ def send_dense_digest_to_discord(structured_data, enriched_content):
             "footer": {"text": "Sélection Développeurs & Ingénieurs • Tech Watch"}
         }
 
-    # Découpage harmonieux en 2 messages Discord
-    # Partie 1 : Header + Tech Générale + Cybersécurité + IA
-    part1_embeds = [header_embed] + pillar_embeds[:3]
-
-    # Partie 2 : Infra & Cloud + Dev & Frameworks + Pépite du jour
-    part2_embeds = pillar_embeds[3:]
-    if spotlight_embed:
-        part2_embeds.append(spotlight_embed)
-
-    parts = [
-        ("Partie 1/2 — Météo Tech • Cybersécurité • IA", part1_embeds),
-        ("Partie 2/2 — Infra & Cloud • Dev & Pépite Open Source", part2_embeds)
+    # Découpage équilibré en 3 livraisons pour ne JAMAIS dépasser la limite Discord (6000 caractères max par envoi)
+    # Partie 1 : Brief Exécutif + Tech Générale (~2000 chars)
+    # Partie 2 : Cybersécurité + IA (~2800 chars)
+    # Partie 3 : Infra & Cloud + Dev + Pépite Open Source (~3000 chars)
+    parts_def = [
+        ("Partie 1/3 — Brief Exécutif & Tech Générale", [header_embed, pillar_embeds[0]] if pillar_embeds else [header_embed]),
+        ("Partie 2/3 — Cybersécurité & Intelligence Artificielle", pillar_embeds[1:3] if len(pillar_embeds) >= 3 else pillar_embeds[1:]),
+        ("Partie 3/3 — Infra, Cloud, Dev & Pépite Open Source", (pillar_embeds[3:] + ([spotlight_embed] if spotlight_embed else [])) if len(pillar_embeds) >= 4 else ([spotlight_embed] if spotlight_embed else []))
     ]
 
-    for part_label, embeds_chunk in parts:
+    for part_label, embeds_chunk in parts_def:
         if not embeds_chunk:
             continue
+
+        # Sécurité anti-dépassement Discord : vérification du total de caractères
+        total_chars = sum(len(e.get("title", "")) + len(e.get("description", "")) + len(e.get("footer", {}).get("text", "")) for e in embeds_chunk)
+        if total_chars > 5500:
+            # Sécurité supplémentaire : tronquer légèrement les descriptions si besoin
+            for e in embeds_chunk:
+                if len(e.get("description", "")) > 1800:
+                    e["description"] = e["description"][:1800] + "..."
 
         payload = {
             "username": "Le Grand Journal Tech & Cyber",
@@ -359,7 +363,7 @@ def send_dense_digest_to_discord(structured_data, enriched_content):
                 print(f"✅ {part_label} envoyée avec succès sur Discord !")
             else:
                 print(f"❌ Erreur Webhook ({resp.status_code}) : {resp.text}")
-            time.sleep(1)
+            time.sleep(1.5)
         except Exception as e:
             print(f"❌ Erreur réseau lors de l'envoi : {e}")
 
