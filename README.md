@@ -1,53 +1,50 @@
-# 🚀 Bot de Veille Tech Quotidienne (Discord + Gemini IA)
+# 🚀 Bot de Veille Tech (Discord + Gemini IA)
 
-Ce projet permet de collecter automatiquement chaque jour les actualités tech de plusieurs sources de référence (Korben, Numerama, The Verge, Hacker News, TechCrunch...), de confier la sélection et la synthèse des 5 meilleures actus à **Gemini Flash (IA gratuite)**, puis de publier le résultat chaque matin sur ton serveur Discord via **Webhook**.
+Ce projet permet d'automatiser deux types de veille informatique sur ton serveur Discord via Webhook, avec analyse et synthèse par **Gemini Flash (IA gratuite)** :
+
+1. ⚡ **Le Daily Digest (Quotidien)** : Les 5 meilleures actus des dernières 24h, chaque matin à 8h.
+2. 📚 **Le Grand Récapitulatif Mensuel (Monthly)** : Une rétrospective catégorisée (*IA*, *Dev/Open-Source*, *Cybersécurité*, *Business/Hardware*) des 30 sujets les plus votés du mois, chaque 1er du mois.
 
 ---
 
 ## 📁 Structure du projet
 
-- `main.py` : Script Python principal (collecte RSS, prompt IA, publication Discord).
+- `main.py` : Script de la veille quotidienne.
+- `monthly.py` : Script de la rétrospective mensuelle (Hacker News Top 30 jours + RSS + Synthèse catégorisée).
 - `requirements.txt` : Dépendances (`feedparser`, `requests`, `python-dotenv`).
-- `.github/workflows/daily_tech_watch.yml` : Automatisation gratuite par GitHub Actions (déclenchement quotidien à 8h).
-- `.env.example` : Modèle pour configurer vos clés en local.
+- `.github/workflows/daily_tech_watch.yml` : Workflow GitHub quotidien (tous les matins à 7h UTC).
+- `.github/workflows/monthly_tech_watch.yml` : Workflow GitHub mensuel (chaque 1er du mois à 7h UTC).
+- `.env.example` : Modèle de variables pour le local.
 
 ---
 
-## ⚡ 1. Configuration rapide
+## ⚡ 1. Utilisation en local
 
-### A. Récupérer tes 2 clés
-1. **Webhook Discord** :
-   - Clic droit sur le salon Discord de ton choix > *Modifier le salon* > *Intégrations* > *Webhooks* > *Nouveau Webhook*.
-   - Copie l'URL du Webhook.
-2. **Clé API Gemini (100% gratuite)** :
-   - Rends-toi sur [Google AI Studio](https://aistudio.google.com/).
-   - Clique sur *Get API key* > *Create API key* et copie-la.
-
-### B. Tester en local (sur ton PC)
-1. Crée un fichier `.env` à côté de `main.py` avec tes valeurs :
+1. Installe les dépendances :
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Crée ton fichier `.env` avec tes clés :
    ```env
    DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
    GEMINI_API_KEY="AIzaSy..."
    ```
-2. Installe les dépendances :
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Lance le script :
+3. Lancer la veille quotidienne :
    ```bash
    python main.py
+   ```
+4. Lancer le récapitulatif mensuel :
+   ```bash
+   python monthly.py
    ```
 
 ---
 
-## 🌐 2. Déploiement automatique avec GitHub (Gratuit H24)
+## 🌐 2. Automatisation GitHub Actions
 
-Pour que la veille s'exécute automatiquement tous les jours sans laisser ton ordinateur allumé :
+Les workflows tournent sans aucun serveur grâce à GitHub Actions :
+- **Daily** : Tous les matins.
+- **Monthly** : Le 1er de chaque mois.
 
-1. Crée un dépôt sur **GitHub** et pousse le contenu de ce dossier (`tech-watch-bot`).
-2. Dans ton dépôt GitHub, va dans :
-   **Settings** > **Secrets and variables** > **Actions** > **New repository secret**.
-3. Ajoute les deux secrets suivants :
-   - `DISCORD_WEBHOOK_URL` : L'URL de ton webhook Discord.
-   - `GEMINI_API_KEY` : Ta clé API Gemini.
-4. C'est prêt ! Tu peux tester immédiatement en allant dans l'onglet **Actions** > **Daily AI Tech Watch** > **Run workflow**.
+Pour tester l'un ou l'autre manuellement :
+Va sur ton dépôt dans **Actions**, choisis le workflow souhaité (*Daily AI Tech Watch* ou *Monthly AI Tech Retrospective*), et clique sur **Run workflow**.
