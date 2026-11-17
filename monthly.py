@@ -20,10 +20,11 @@ HEADERS = {
 }
 
 # Modèles en cascade : priorité absolue à 3.8, avec repli immédiat sur 3.7 / 3.6 / 3.1 en cas de pic de charge
+# Priorité absolue à 3.8 dès qu'il a du quota disponible, avec repli instantané sur 3.6
 CANDIDATE_MODELS = [
+    "gemini-3.8-flash",
     "gemini-3.6-flash",
-    "gemini-3.7-flash",
-    "gemini-3.8-flash"
+    "gemini-3.7-flash"
 ]
 
 MONTHS_FR = [
@@ -127,9 +128,12 @@ def call_gemini_with_fallback(prompt: str):
                         raw = re.sub(r'^```(json)?\s*', '', raw)
                         raw = re.sub(r'\s*```$', '', raw)
                     return json.loads(raw)
-                elif resp.status_code in (503, 429):
-                    print(f"  ↳ Modèle {model} surchargé ({resp.status_code}), pause...")
-                    time.sleep(2)
+                elif resp.status_code == 429:
+                    print(f"  ↳ Quota atteint sur {model} (429), bascule immédiate...")
+                    break
+                elif resp.status_code == 503:
+                    print(f"  ↳ Modèle {model} indisponible (503), bascule...")
+                    break
                 elif resp.status_code == 404:
                     print(f"  ↳ Modèle {model} 404, essai suivant...")
                     break

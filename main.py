@@ -19,11 +19,11 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-# Priorité à 3.6 pour aujourd'hui (quota 3.8 plein à 21/20), puis 3.7 et 3.8
+# Priorité absolue à 3.8 dès qu'il a du quota disponible, avec repli instantané sur 3.6 si le quota de 3.8 est atteint
 CANDIDATE_MODELS = [
+    "gemini-3.8-flash",
     "gemini-3.6-flash",
-    "gemini-3.7-flash",
-    "gemini-3.8-flash"
+    "gemini-3.7-flash"
 ]
 
 # Les 5 piliers avec sources vérifiées et actives
@@ -190,9 +190,12 @@ Format de réponse requis : UNIQUEMENT un objet JSON associant chaque pôle à s
                         raw_text = re.sub(r'\s*```$', '', raw_text)
                     print(f"✓ Synthèses éditoriales rédigées avec succès par {model} !")
                     return json.loads(raw_text)
-                elif response.status_code in (503, 429):
-                    print(f"  ↳ Modèle {model} temporairement occupé ({response.status_code}), pause de 1s...")
-                    time.sleep(1.5)
+                elif response.status_code == 429:
+                    print(f"  ↳ Quota atteint sur {model} (429), bascule immédiate sur le modèle suivant...")
+                    break
+                elif response.status_code == 503:
+                    print(f"  ↳ Modèle {model} indisponible (503), bascule sur le modèle suivant...")
+                    break
                 else:
                     print(f"  ↳ Erreur {response.status_code}: {response.text[:150]}")
                     break
