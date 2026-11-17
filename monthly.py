@@ -19,12 +19,12 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-# Modèles prioritaires selon ta demande
+# Modèles en cascade : priorité absolue à 3.8, avec repli immédiat sur 3.7 / 3.6 / 3.1 en cas de pic de charge
 CANDIDATE_MODELS = [
+    "gemini-3.8-flash",
     "gemini-3.7-flash",
     "gemini-3.6-flash",
     "gemini-3.1-pro",
-    "gemini-3.8-flash",
     "gemini-1.5-flash"
 ]
 
