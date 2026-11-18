@@ -2,8 +2,8 @@ name: Daily AI Tech Watch
 
 on:
   schedule:
-    # Tous les jours à 7h00 UTC (8h00 en France)
-    - cron: '0 7 * * *'
+    # Tous les jours à 6h50 UTC (7h50 en France) pour éviter l'embouteillage mondial de 8h00
+    - cron: '50 6 * * *'
   # Déclenchement manuel
   workflow_dispatch:
 
