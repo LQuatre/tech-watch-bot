@@ -19,7 +19,7 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-# Modèles en cascade calibrés pour une résilience absolue (priorité aux quotas hauts en cas de saturation)
+# Modèles en cascade calibrés pour une résilience absolue
 CANDIDATE_MODELS = [
     "gemini-3.8-flash",
     "gemini-3.6-flash",
@@ -28,8 +28,8 @@ CANDIDATE_MODELS = [
     "gemini-3-flash"
 ]
 
-# 50 sources sélectionnées et testées (médias de référence français et internationaux)
-PILLARS = {
+# Les 5 piliers Tech & Cyber (43 sources)
+TECH_PILLARS = {
     "Tech Générale": {
         "emoji": "🟠",
         "color": 0xF59E0B, # Orange
@@ -102,19 +102,44 @@ PILLARS = {
             "Rust Blog": "https://blog.rust-lang.org/feed.xml",
             "Laravel News": "https://laravel-news.com/feed"
         }
-    },
-    "Esport & Leaks Roster": {
-        "emoji": "🎮",
-        "color": 0xEC4899, # Rose / Magenta Esport
+    }
+}
+
+# Les 3 Grands Blocs Esport & Leaks Roster
+ESPORT_GAMES = {
+    "League of Legends": {
+        "title": "🏆 LEAGUE OF LEGENDS • MERCATO & LEAKS",
+        "emoji": "🏆",
+        "color": 0x1D4ED8, # Bleu Royal LoL
+        "footer": "Mercato LoL • LEC / LFL / Worlds",
         "feeds": {
             "Dexerto LoL": "https://www.dexerto.com/league-of-legends/feed/",
+            "Fragster (LEC/LoL)": "https://www.fragster.com/feed/",
+            "L'Équipe LoL": "https://dwh.lequipe.fr/api/edito/rss?path=/Esport/"
+        },
+        "default_summary": "Mercato et leaks de rosters en ébullition : accords verbaux, rachats de contrats (buyouts SkewMond, Yike, Rooster...) et recompositions majeures pour le LEC et la LFL."
+    },
+    "Rocket League": {
+        "title": "🚀 ROCKET LEAGUE • ROSTERMANIA & RLCS",
+        "emoji": "🚀",
+        "color": 0x0284C7, # Cyan RLCS
+        "footer": "Rostermania RLCS • Circuits Majeurs",
+        "feeds": {
             "Dexerto Rocket League": "https://www.dexerto.com/rocket-league/feed/",
+            "L'Équipe RL": "https://dwh.lequipe.fr/api/edito/rss?path=/Esport/"
+        },
+        "default_summary": "Rostermania et transferts sur Rocket League : réajustements de trios, mercato d'intersaison et qualifications pour les futurs tournois RLCS."
+    },
+    "Call of Duty": {
+        "title": "💥 CALL OF DUTY • CDL & TRANSFERTS PROS",
+        "emoji": "💥",
+        "color": 0xEA580C, # Orange Militaire CDL
+        "footer": "Scène CDL & Warzone • Roster Mania",
+        "feeds": {
             "Dexerto Call of Duty": "https://www.dexerto.com/call-of-duty/feed/",
-            "L'Équipe Esport": "https://dwh.lequipe.fr/api/edito/rss?path=/Esport/",
-            "Dexerto Esport": "https://www.dexerto.com/esports/feed/",
-            "Upcomer": "https://upcomer.com/feed",
-            "Fragster (LEC/LoL)": "https://www.fragster.com/feed/"
-        }
+            "Upcomer CoD": "https://upcomer.com/feed"
+        },
+        "default_summary": "Rostermania CDL et scène compétitive Call of Duty : transferts de pros, composition des franchises américaines et évolutions du circuit compétitif."
     }
 }
 
@@ -123,14 +148,8 @@ DEFAULT_SUMMARIES = {
     "Cybersécurité": "Vigilance sur les vulnérabilités supply-chain, les attaques ransomware ciblant les entreprises et les alertes d'organismes gouvernementaux.",
     "Intelligence Artificielle": "Accélération des modèles multimodaux, essor de l'inférence locale et outillage des agents IA pour développeurs.",
     "Infra & Cloud": "Optimisation des architectures cloud-natives, passage à l'échelle sur Kubernetes et résilience des réseaux Edge.",
-    "Dev & Frameworks": "Mises à jour des runtimes, renforcement de la sécurité des paquets open source et évolutions des langages modernes.",
-    "Esport & Leaks Roster": "Mercato et rumeurs de transferts sur League of Legends (LEC/LFL), mouvements de rosters RLCS sur Rocket League et transferts de pros sur Call of Duty CDL."
+    "Dev & Frameworks": "Mises à jour des runtimes, renforcement de la sécurité des paquets open source et évolutions des langages modernes."
 }
-
-def clean_html(raw_html: str) -> str:
-    clean = re.sub(r'<[^>]+>', '', raw_html or '')
-    clean = ' '.join(clean.split())
-    return clean
 
 ROSTER_KEYWORDS = [
     "transfer", "mercato", "roster", "leak", "rumor", "sign", "join", "leave", 
@@ -138,26 +157,26 @@ ROSTER_KEYWORDS = [
     "vitality", "fnatic", "g2", "rlcs", "cdl", "wooloo", "lineup"
 ]
 
-def fetch_all_pillars(max_hours: int = 24):
-    """Collecte jusqu'à 5 articles distincts par pilier parmi 50 sources avec priorisation mercato."""
-    structured = {}
-    print(f"📡 Collecte des articles sur 50 sources de référence...")
+def clean_html(raw_html: str) -> str:
+    clean = re.sub(r'<[^>]+>', '', raw_html or '')
+    clean = ' '.join(clean.split())
+    return clean
 
-    for pillar, conf in PILLARS.items():
-        structured[pillar] = []
-        is_esport = (pillar == "Esport & Leaks Roster")
-        max_entries_to_check = 12 if is_esport else 4
-        max_per_source = 2 if is_esport else 1
+def fetch_all_data(max_hours: int = 24):
+    """Collecte les 5 piliers Tech (jusqu'à 5 articles) et les 3 Blocs Esport (jusqu'à 3 articles par jeu)."""
+    tech_data = {}
+    esport_data = {}
 
+    print(f"📡 Collecte des 5 piliers Tech sur 43 sources...")
+    for pillar, conf in TECH_PILLARS.items():
+        tech_data[pillar] = []
         for source, url in conf["feeds"].items():
-            source_count = 0
             try:
                 r = requests.get(url, headers=HEADERS, timeout=8)
                 if r.status_code != 200:
                     continue
                 feed = feedparser.parse(r.content)
-
-                for entry in feed.entries[:max_entries_to_check]:
+                for entry in feed.entries[:4]:
                     title = getattr(entry, "title", "").strip()
                     link = getattr(entry, "link", "").strip()
                     raw_summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
@@ -172,12 +191,43 @@ def fetch_all_pillars(max_hours: int = 24):
                         snippet = (cut[:last_space] if last_space > 0 else cut) + "..."
 
                     if title and link:
-                        score = 0
-                        if is_esport:
-                            text_to_check = f"{title} {snippet}".lower()
-                            score = sum(10 for kw in ROSTER_KEYWORDS if kw in text_to_check)
+                        tech_data[pillar].append({
+                            "source": source,
+                            "title": title,
+                            "link": link,
+                            "snippet": snippet
+                        })
+                        break
+            except Exception as e:
+                print(f"  ✗ Erreur {source}: {e}")
+        tech_data[pillar] = tech_data[pillar][:5]
+        print(f"  ✓ {pillar} : {len(tech_data[pillar])} articles prêts")
 
-                        structured[pillar].append({
+    print(f"🎮 Collecte des 3 Blocs Esport (LoL • Rocket League • Call of Duty)...")
+    for game, conf in ESPORT_GAMES.items():
+        esport_data[game] = []
+        for source, url in conf["feeds"].items():
+            source_count = 0
+            try:
+                r = requests.get(url, headers=HEADERS, timeout=8)
+                if r.status_code != 200:
+                    continue
+                feed = feedparser.parse(r.content)
+                for entry in feed.entries[:12]:
+                    title = getattr(entry, "title", "").strip()
+                    link = getattr(entry, "link", "").strip()
+                    raw_summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
+                    snippet = clean_html(raw_summary)
+
+                    if len(snippet) > 220:
+                        cut = snippet[:220]
+                        last_space = cut.rfind(' ')
+                        snippet = (cut[:last_space] if last_space > 0 else cut) + "..."
+
+                    if title and link:
+                        text_to_check = f"{title} {snippet}".lower()
+                        score = sum(10 for kw in ROSTER_KEYWORDS if kw in text_to_check)
+                        esport_data[game].append({
                             "source": source,
                             "title": title,
                             "link": link,
@@ -185,75 +235,82 @@ def fetch_all_pillars(max_hours: int = 24):
                             "score": score
                         })
                         source_count += 1
-                        if source_count >= max_per_source:
+                        if source_count >= 2:
                             break
             except Exception as e:
                 print(f"  ✗ Erreur {source}: {e}")
 
-        # Priorisation intelligente des transferts et leaks de rosters
-        if is_esport:
-            structured[pillar].sort(key=lambda x: x.get("score", 0), reverse=True)
+        # Priorité aux transferts/leaks de rosters
+        esport_data[game].sort(key=lambda x: x.get("score", 0), reverse=True)
+        esport_data[game] = esport_data[game][:3]
+        print(f"  ✓ {game} : {len(esport_data[game])} actus mercato/esport prêtes")
 
-        # On retient 5 articles maximum par pilier
-        structured[pillar] = structured[pillar][:5]
-        print(f"  ✓ {pillar} : {len(structured[pillar])} articles prêts")
+    return tech_data, esport_data
 
-    return structured
+def translate_and_enrich_with_gemini(tech_data, esport_data):
+    """Enrichissement IA complet : Brief, Tech, et les 3 gros blocs Esport dédiés."""
+    compact_tech = {
+        p: [{"title": a["title"][:90], "source": a["source"], "snippet": a["snippet"][:120], "link": a["link"]} for a in arts]
+        for p, arts in tech_data.items()
+    }
+    compact_esport = {
+        g: [{"title": a["title"][:90], "source": a["source"], "snippet": a["snippet"][:120], "link": a["link"]} for a in arts]
+        for g, arts in esport_data.items()
+    }
 
-def translate_and_enrich_with_gemini(structured_data):
-    """Demande à Gemini d'enrichir le digest : Brief matinal, tags, traductions FR et pépite open-source."""
-    compact_data = {}
-    for p, arts in structured_data.items():
-        compact_data[p] = [
-            {"title": a["title"][:90], "source": a["source"], "snippet": a["snippet"][:120], "link": a["link"]}
-            for a in arts
-        ]
+    prompt = f"""Tu es le rédacteur en chef d'une prestigieuse revue tech, cybersécurité et esport francophone.
+Voici la sélection d'articles du jour :
 
-    prompt = f"""Tu es le rédacteur en chef d'une prestigieuse revue tech et cybersécurité francophone.
-Voici la sélection des articles du jour classés par piliers :
-{json.dumps(compact_data, ensure_ascii=False, indent=2)}
+TECH & CYBER :
+{json.dumps(compact_tech, ensure_ascii=False, indent=2)}
+
+ESPORT & MERCATO :
+{json.dumps(compact_esport, ensure_ascii=False, indent=2)}
 
 MISSION :
-Génère une édition complète 100% EN FRANÇAIS IMPECCABLE, riche et professionnelle.
+Génère une édition 100% EN FRANÇAIS IMPECCABLE, riche et captivante.
 
 1. "executive_brief" :
-   - "headline" : Une phrase d'impact direct résumant le grand fait technologique ou cyber marquant d'aujourd'hui.
-   - "threat_level" : Le niveau de menace cyber du jour ("Normal 🟢", "Modéré 🟡", ou "Élevé 🔴") en fonction des failles ou attaques détectées.
-   - "macro_trend" : Une phrase synthétisant la tendance forte de fond qui traverse l'écosystème aujourd'hui.
+   - "headline" : 1 phrase percutante sur le fait technologique ou cyber marquant du jour.
+   - "threat_level" : Niveau de menace cyber ("Normal 🟢", "Modéré 🟡", "Élevé 🔴").
+   - "macro_trend" : 1 phrase sur la tendance dominante.
 
 2. "spotlight_tool" :
-   Identifie parmi les articles ou actualités fournies LA pépite technique / open-source / outil remarquable du jour :
-   - "title" : Nom de l'outil ou projet
-   - "link" : URL associée
-   - "why" : 2 phrases complètes en français expliquant ce qu'il apporte aux développeurs/ingénieurs.
+   - "title" : Nom de la pépite open-source / outil du jour repéré dans la tech.
+   - "link" : URL
+   - "why" : 2 phrases expliquant pourquoi c'est utile.
 
-3. "pillars" :
-   Pour CHAQUE pilier ("Tech Générale", "Cybersécurité", "Intelligence Artificielle", "Infra & Cloud", "Dev & Frameworks", "Esport & Leaks Roster") :
-   - "summary" : 2 phrases d'analyse de fond en français sur la dynamique du secteur aujourd'hui (pour l'esport : priorité absolue aux transferts, officialisations de mercato, rumeurs et leaks de rosters LoL/RL/CoD type SkewMond, Yike, Caliste, KC, G2, Vitality, Fnatic, RLCS, CDL).
-   - "articles" : Pour chaque article fourni dans ce pilier :
-       * "title_fr" : Titre traduit et percutant en français.
-       * "tag" : Un mot-clé court entre crochets (ex: "Hardware", "Vulnérabilité", "LLM", "Linux", "Réseau", "Dev", "LoL Mercato", "RLCS Transfert", "CoD CDL", "Leak Roster").
-       * "point_fr" : 2 phrases complètes et claires en français détaillant les faits précis, les joueurs/équipes et l'impact direct (pas de texte tronqué).
+3. "tech_pillars" :
+   Pour CHAQUE pilier Tech ("Tech Générale", "Cybersécurité", "Intelligence Artificielle", "Infra & Cloud", "Dev & Frameworks") :
+   - "summary" : 2 phrases d'analyse éditoriale.
+   - "articles" : Pour chaque article fourni :
+       * "title_fr" : Titre traduit en français
+       * "tag" : Tag court entre crochets (ex: "Hardware", "Vulnérabilité", "LLM", "Linux")
+       * "point_fr" : 2 phrases complètes en français détaillant les faits précis et l'impact direct.
+
+4. "esport_games" :
+   Pour CHAQUE jeu ("League of Legends", "Rocket League", "Call of Duty") :
+   - "summary" : 2 phrases d'analyse de fond focalisées sur le MERCATO, les TRANSFERTS et les LEAKS DE ROSTERS (ex: officialisations, buyouts, départs, rumeurs, tournois).
+   - "articles" : Pour chaque actu du jeu :
+       * "title_fr" : Titre traduit en français
+       * "tag" : Tag explicite (ex: "LoL Mercato", "RLCS Transfert", "CoD CDL", "Roster Leak")
+       * "point_fr" : 2 phrases complètes expliquant clairement les joueurs concernés, l'équipe et les enjeux.
 
 FORMAT STRICTEMENT EXIGÉ : UNIQUEMENT un objet JSON valide :
 {{
-  "executive_brief": {{
-    "headline": "...",
-    "threat_level": "Modéré 🟡",
-    "macro_trend": "..."
-  }},
-  "spotlight_tool": {{
-    "title": "...",
-    "link": "...",
-    "why": "..."
-  }},
-  "pillars": {{
+  "executive_brief": {{ "headline": "...", "threat_level": "Modéré 🟡", "macro_trend": "..." }},
+  "spotlight_tool": {{ "title": "...", "link": "...", "why": "..." }},
+  "tech_pillars": {{
     "Tech Générale": {{ "summary": "...", "articles": [{{"title_fr": "...", "tag": "...", "point_fr": "..."}}] }},
     "Cybersécurité": {{ "summary": "...", "articles": [...] }},
     "Intelligence Artificielle": {{ "summary": "...", "articles": [...] }},
     "Infra & Cloud": {{ "summary": "...", "articles": [...] }},
-    "Dev & Frameworks": {{ "summary": "...", "articles": [...] }},
-    "Esport & Leaks Roster": {{ "summary": "...", "articles": [...] }}
+    "Dev & Frameworks": {{ "summary": "...", "articles": [...] }}
+  }},
+  "esport_games": {{
+    "League of Legends": {{ "summary": "...", "articles": [{{"title_fr": "...", "tag": "...", "point_fr": "..."}}] }},
+    "Rocket League": {{ "summary": "...", "articles": [...] }},
+    "Call of Duty": {{ "summary": "...", "articles": [...] }}
   }}
 }}"""
 
@@ -267,7 +324,7 @@ FORMAT STRICTEMENT EXIGÉ : UNIQUEMENT un objet JSON valide :
             }
         }
         try:
-            print(f"Traduction & enrichissement éditorial avec {model}...")
+            print(f"Traduction & structuration en gros blocs avec {model}...")
             response = requests.post(url, json=payload, timeout=45)
             if response.status_code == 200:
                 raw_text = response.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
@@ -288,18 +345,19 @@ FORMAT STRICTEMENT EXIGÉ : UNIQUEMENT un objet JSON valide :
         except Exception as e:
             print(f"  ↳ Exception {model}: {e}")
 
-    print("⚠️ Repli sur le format standard sans enrichissement IA.")
+    print("⚠️ Repli sur les données standard.")
     return None
 
-def send_dense_digest_to_discord(structured_data, enriched_content):
-    """Envoie le digest enrichi sur Discord en 2 livraisons élégantes."""
+def send_dense_digest_to_discord(tech_data, esport_data, enriched_content):
+    """Envoie le digest sur Discord découpé en 4 livraisons dont 3 gros blocs dédiés pour l'Esport."""
     today = datetime.now().strftime("%d/%m/%Y")
     
     brief = enriched_content.get("executive_brief", {}) if enriched_content else {}
     spotlight = enriched_content.get("spotlight_tool", {}) if enriched_content else {}
-    pillars_ai = enriched_content.get("pillars", {}) if enriched_content else {}
+    tech_ai = enriched_content.get("tech_pillars", {}) if enriched_content else {}
+    esport_ai = enriched_content.get("esport_games", {}) if enriched_content else {}
 
-    # 1. Embed En-tête : Brief Matinal & Tendance du jour
+    # 1. Embed En-tête : Brief Matinal
     header_description = ""
     if brief:
         headline = brief.get("headline", "")
@@ -312,31 +370,30 @@ def send_dense_digest_to_discord(structured_data, enriched_content):
             f"⏱️ *Temps de lecture estimé : ~3 minutes*"
         )
     else:
-        header_description = f"Bienvenue dans votre édition du {today}. Retrouvez l'essentiel de l'actualité tech, cyber, IA, cloud et dev décryptée en français."
+        header_description = f"Bienvenue dans votre édition du {today}. Retrouvez l'essentiel de la tech, cyber, IA, cloud, dev et le mercato esport complet."
 
     header_embed = {
         "title": f"🌅 BRIEF & TENDANCES TECH DU JOUR — {today}",
         "description": header_description,
-        "color": 0x6366F1, # Indigo moderne
+        "color": 0x6366F1,
         "footer": {"text": "Édition Exécutive • Veille Matinale"}
     }
 
-    # 2. Embeds des 5 Piliers
-    pillar_embeds = []
-    for pillar_name, conf in PILLARS.items():
-        arts = structured_data.get(pillar_name, [])
+    # 2. Embeds des 5 Piliers Tech
+    tech_embeds = []
+    for pillar_name, conf in TECH_PILLARS.items():
+        arts = tech_data.get(pillar_name, [])
         if not arts:
             continue
 
         emoji = conf["emoji"]
         color = conf["color"]
 
-        pillar_data = pillars_ai.get(pillar_name, {})
-        summary = pillar_data.get("summary") or DEFAULT_SUMMARIES.get(pillar_name, "")
-        articles_ai = pillar_data.get("articles", [])
+        pillar_info = tech_ai.get(pillar_name, {})
+        summary = pillar_info.get("summary") or DEFAULT_SUMMARIES.get(pillar_name, "")
+        articles_ai = pillar_info.get("articles", [])
 
         field_text = f"*{summary}*\n\n"
-
         for idx, art in enumerate(arts):
             ai_item = articles_ai[idx] if idx < len(articles_ai) else {}
             title = ai_item.get("title_fr") or art.get("title", "Actualité")
@@ -350,14 +407,14 @@ def send_dense_digest_to_discord(structured_data, enriched_content):
             else:
                 field_text += f"• {tag}**[{title}]({link})** `({source})`\n\n"
 
-        pillar_embeds.append({
+        tech_embeds.append({
             "title": f"{emoji} {pillar_name.upper()}",
             "description": field_text.strip(),
             "color": color,
             "footer": {"text": f"Pôle {pillar_name} • Édition Complète en Français"}
         })
 
-    # 3. Embed Pépite Open Source / Outil du jour
+    # 3. Embed Pépite Open Source
     spotlight_embed = None
     if spotlight and spotlight.get("title") and spotlight.get("why"):
         tool_title = spotlight.get("title")
@@ -366,30 +423,65 @@ def send_dense_digest_to_discord(structured_data, enriched_content):
         spotlight_embed = {
             "title": "⭐ LA PÉPITE OPEN SOURCE & TECHNIQUE DU JOUR",
             "description": f"• **[{tool_title}]({tool_link})**\n↳ {tool_why}",
-            "color": 0xFBBF24, # Or / Ambre
+            "color": 0xFBBF24,
             "footer": {"text": "Sélection Développeurs & Ingénieurs • Tech Watch"}
         }
 
-    # Découpage équilibré en 4 livraisons pour ne JAMAIS dépasser la limite Discord (6000 caractères max par envoi)
-    # Partie 1/4 : Brief Exécutif & Tech Générale (~2000 chars)
-    # Partie 2/4 : Cybersécurité & Intelligence Artificielle (~2800 chars)
-    # Partie 3/4 : Infra, Cloud, Dev & Pépite Open Source (~3000 chars)
-    # Partie 4/4 : 🎮 Esport & Leaks Roster (LoL • Rocket League • Call of Duty) (~2200 chars)
+    # 4. Les 3 Gros Blocs Esport Dédiés (League of Legends, Rocket League, Call of Duty)
+    esport_embeds = []
+    for game_name, conf in ESPORT_GAMES.items():
+        arts = esport_data.get(game_name, [])
+        if not arts:
+            continue
+
+        color = conf["color"]
+        title_block = conf["title"]
+        footer_text = conf["footer"]
+
+        game_info = esport_ai.get(game_name, {})
+        summary = game_info.get("summary") or conf["default_summary"]
+        articles_ai = game_info.get("articles", [])
+
+        field_text = f"*{summary}*\n\n"
+        for idx, art in enumerate(arts):
+            ai_item = articles_ai[idx] if idx < len(articles_ai) else {}
+            title = ai_item.get("title_fr") or art.get("title", "Actualité")
+            tag = f"`[{ai_item.get('tag', game_name)}]` " if ai_item.get("tag") else ""
+            point = ai_item.get("point_fr") or art.get("snippet", "")
+            link = art.get("link", "")
+            source = art.get("source", "Web")
+
+            if point:
+                field_text += f"• {tag}**[{title}]({link})** `({source})`\n  ↳ {point}\n\n"
+            else:
+                field_text += f"• {tag}**[{title}]({link})** `({source})`\n\n"
+
+        esport_embeds.append({
+            "title": title_block,
+            "description": field_text.strip(),
+            "color": color,
+            "footer": {"text": footer_text}
+        })
+
+    # Découpage équilibré en 4 livraisons :
+    # Partie 1/4 : Brief Exécutif & Tech Générale
+    # Partie 2/4 : Cybersécurité & Intelligence Artificielle
+    # Partie 3/4 : Infra, Cloud, Dev & Pépite Open Source
+    # Partie 4/4 : Les 3 Gros Blocs Esport (LoL • Rocket League • Call of Duty)
     parts_def = [
-        ("Partie 1/4 — Brief Exécutif & Tech Générale", [header_embed, pillar_embeds[0]] if pillar_embeds else [header_embed]),
-        ("Partie 2/4 — Cybersécurité & Intelligence Artificielle", pillar_embeds[1:3] if len(pillar_embeds) >= 3 else pillar_embeds[1:]),
-        ("Partie 3/4 — Infra, Cloud, Dev & Pépite Open Source", (pillar_embeds[3:5] + ([spotlight_embed] if spotlight_embed else [])) if len(pillar_embeds) >= 5 else ([spotlight_embed] if spotlight_embed else [])),
-        ("Partie 4/4 — 🎮 Esport & Leaks Roster (LoL • Rocket League • CoD)", [pillar_embeds[5]] if len(pillar_embeds) >= 6 else (pillar_embeds[5:] if len(pillar_embeds) > 5 else []))
+        ("Partie 1/4 — Brief Exécutif & Tech Générale", [header_embed, tech_embeds[0]] if tech_embeds else [header_embed]),
+        ("Partie 2/4 — Cybersécurité & Intelligence Artificielle", tech_embeds[1:3] if len(tech_embeds) >= 3 else tech_embeds[1:]),
+        ("Partie 3/4 — Infra, Cloud, Dev & Pépite Open Source", (tech_embeds[3:] + ([spotlight_embed] if spotlight_embed else [])) if len(tech_embeds) >= 4 else ([spotlight_embed] if spotlight_embed else [])),
+        ("Partie 4/4 — 🎮 Esport & Leaks Roster (LoL • Rocket League • Call of Duty)", esport_embeds)
     ]
 
     for part_label, embeds_chunk in parts_def:
         if not embeds_chunk:
             continue
 
-        # Sécurité anti-dépassement Discord : vérification du total de caractères
+        # Sécurité anti-dépassement Discord (6000 chars max)
         total_chars = sum(len(e.get("title", "")) + len(e.get("description", "")) + len(e.get("footer", {}).get("text", "")) for e in embeds_chunk)
         if total_chars > 5500:
-            # Sécurité supplémentaire : tronquer légèrement les descriptions si besoin
             for e in embeds_chunk:
                 if len(e.get("description", "")) > 1800:
                     e["description"] = e["description"][:1800] + "..."
@@ -419,6 +511,6 @@ if __name__ == "__main__":
         print("❌ Clé GEMINI_API_KEY manquante.")
         exit(1)
 
-    structured_news = fetch_all_pillars()
-    enriched = translate_and_enrich_with_gemini(structured_news)
-    send_dense_digest_to_discord(structured_news, enriched)
+    tech_news, esport_news = fetch_all_data()
+    enriched = translate_and_enrich_with_gemini(tech_news, esport_news)
+    send_dense_digest_to_discord(tech_news, esport_news, enriched)
