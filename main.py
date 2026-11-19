@@ -132,21 +132,32 @@ def clean_html(raw_html: str) -> str:
     clean = ' '.join(clean.split())
     return clean
 
+ROSTER_KEYWORDS = [
+    "transfer", "mercato", "roster", "leak", "rumor", "sign", "join", "leave", 
+    "bench", "buyout", "contract", "skewmond", "yike", "caliste", "karmine", 
+    "vitality", "fnatic", "g2", "rlcs", "cdl", "wooloo", "lineup"
+]
+
 def fetch_all_pillars(max_hours: int = 24):
-    """Collecte jusqu'à 5 articles distincts par pilier parmi 50 sources."""
+    """Collecte jusqu'à 5 articles distincts par pilier parmi 50 sources avec priorisation mercato."""
     structured = {}
     print(f"📡 Collecte des articles sur 50 sources de référence...")
 
     for pillar, conf in PILLARS.items():
         structured[pillar] = []
+        is_esport = (pillar == "Esport & Leaks Roster")
+        max_entries_to_check = 12 if is_esport else 4
+        max_per_source = 2 if is_esport else 1
+
         for source, url in conf["feeds"].items():
+            source_count = 0
             try:
                 r = requests.get(url, headers=HEADERS, timeout=8)
                 if r.status_code != 200:
                     continue
                 feed = feedparser.parse(r.content)
 
-                for entry in feed.entries[:4]:
+                for entry in feed.entries[:max_entries_to_check]:
                     title = getattr(entry, "title", "").strip()
                     link = getattr(entry, "link", "").strip()
                     raw_summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
@@ -161,16 +172,27 @@ def fetch_all_pillars(max_hours: int = 24):
                         snippet = (cut[:last_space] if last_space > 0 else cut) + "..."
 
                     if title and link:
+                        score = 0
+                        if is_esport:
+                            text_to_check = f"{title} {snippet}".lower()
+                            score = sum(10 for kw in ROSTER_KEYWORDS if kw in text_to_check)
+
                         structured[pillar].append({
                             "source": source,
                             "title": title,
                             "link": link,
-                            "snippet": snippet
+                            "snippet": snippet,
+                            "score": score
                         })
-                        # 1 article retenu par source pour diversifier au maximum
-                        break
+                        source_count += 1
+                        if source_count >= max_per_source:
+                            break
             except Exception as e:
                 print(f"  ✗ Erreur {source}: {e}")
+
+        # Priorisation intelligente des transferts et leaks de rosters
+        if is_esport:
+            structured[pillar].sort(key=lambda x: x.get("score", 0), reverse=True)
 
         # On retient 5 articles maximum par pilier
         structured[pillar] = structured[pillar][:5]
@@ -207,11 +229,11 @@ Génère une édition complète 100% EN FRANÇAIS IMPECCABLE, riche et professio
 
 3. "pillars" :
    Pour CHAQUE pilier ("Tech Générale", "Cybersécurité", "Intelligence Artificielle", "Infra & Cloud", "Dev & Frameworks", "Esport & Leaks Roster") :
-   - "summary" : 2 phrases d'analyse de fond en français sur la dynamique du secteur aujourd'hui (pour l'esport : mercato, leaks de rosters, transferts et actualité compétitive LoL/RL/CoD).
+   - "summary" : 2 phrases d'analyse de fond en français sur la dynamique du secteur aujourd'hui (pour l'esport : priorité absolue aux transferts, officialisations de mercato, rumeurs et leaks de rosters LoL/RL/CoD type SkewMond, Yike, Caliste, KC, G2, Vitality, Fnatic, RLCS, CDL).
    - "articles" : Pour chaque article fourni dans ce pilier :
        * "title_fr" : Titre traduit et percutant en français.
-       * "tag" : Un mot-clé court entre crochets (ex: "Hardware", "Vulnérabilité", "LLM", "Linux", "Réseau", "Dev", "LoL Mercato", "RLCS", "CoD CDL").
-       * "point_fr" : 2 phrases complètes et claires en français détaillant les faits précis et l'impact direct (pas de texte tronqué).
+       * "tag" : Un mot-clé court entre crochets (ex: "Hardware", "Vulnérabilité", "LLM", "Linux", "Réseau", "Dev", "LoL Mercato", "RLCS Transfert", "CoD CDL", "Leak Roster").
+       * "point_fr" : 2 phrases complètes et claires en français détaillant les faits précis, les joueurs/équipes et l'impact direct (pas de texte tronqué).
 
 FORMAT STRICTEMENT EXIGÉ : UNIQUEMENT un objet JSON valide :
 {{
