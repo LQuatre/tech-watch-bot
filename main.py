@@ -28,7 +28,7 @@ CANDIDATE_MODELS = [
     "gemini-3-flash"
 ]
 
-# 43 sources sélectionnées et testées (médias de référence français et internationaux)
+# 50 sources sélectionnées et testées (médias de référence français et internationaux)
 PILLARS = {
     "Tech Générale": {
         "emoji": "🟠",
@@ -102,6 +102,19 @@ PILLARS = {
             "Rust Blog": "https://blog.rust-lang.org/feed.xml",
             "Laravel News": "https://laravel-news.com/feed"
         }
+    },
+    "Esport & Leaks Roster": {
+        "emoji": "🎮",
+        "color": 0xEC4899, # Rose / Magenta Esport
+        "feeds": {
+            "Dexerto LoL": "https://www.dexerto.com/league-of-legends/feed/",
+            "Dexerto Rocket League": "https://www.dexerto.com/rocket-league/feed/",
+            "Dexerto Call of Duty": "https://www.dexerto.com/call-of-duty/feed/",
+            "L'Équipe Esport": "https://dwh.lequipe.fr/api/edito/rss?path=/Esport/",
+            "Dexerto Esport": "https://www.dexerto.com/esports/feed/",
+            "Upcomer": "https://upcomer.com/feed",
+            "Fragster (LEC/LoL)": "https://www.fragster.com/feed/"
+        }
     }
 }
 
@@ -110,7 +123,8 @@ DEFAULT_SUMMARIES = {
     "Cybersécurité": "Vigilance sur les vulnérabilités supply-chain, les attaques ransomware ciblant les entreprises et les alertes d'organismes gouvernementaux.",
     "Intelligence Artificielle": "Accélération des modèles multimodaux, essor de l'inférence locale et outillage des agents IA pour développeurs.",
     "Infra & Cloud": "Optimisation des architectures cloud-natives, passage à l'échelle sur Kubernetes et résilience des réseaux Edge.",
-    "Dev & Frameworks": "Mises à jour des runtimes, renforcement de la sécurité des paquets open source et évolutions des langages modernes."
+    "Dev & Frameworks": "Mises à jour des runtimes, renforcement de la sécurité des paquets open source et évolutions des langages modernes.",
+    "Esport & Leaks Roster": "Mercato et rumeurs de transferts sur League of Legends (LEC/LFL), mouvements de rosters RLCS sur Rocket League et transferts de pros sur Call of Duty CDL."
 }
 
 def clean_html(raw_html: str) -> str:
@@ -119,9 +133,9 @@ def clean_html(raw_html: str) -> str:
     return clean
 
 def fetch_all_pillars(max_hours: int = 24):
-    """Collecte jusqu'à 5 articles distincts par pilier parmi 43 sources."""
+    """Collecte jusqu'à 5 articles distincts par pilier parmi 50 sources."""
     structured = {}
-    print(f"📡 Collecte des articles sur 43 sources de référence...")
+    print(f"📡 Collecte des articles sur 50 sources de référence...")
 
     for pillar, conf in PILLARS.items():
         structured[pillar] = []
@@ -192,11 +206,11 @@ Génère une édition complète 100% EN FRANÇAIS IMPECCABLE, riche et professio
    - "why" : 2 phrases complètes en français expliquant ce qu'il apporte aux développeurs/ingénieurs.
 
 3. "pillars" :
-   Pour CHAQUE pilier ("Tech Générale", "Cybersécurité", "Intelligence Artificielle", "Infra & Cloud", "Dev & Frameworks") :
-   - "summary" : 2 phrases d'analyse de fond en français sur la dynamique du secteur aujourd'hui.
+   Pour CHAQUE pilier ("Tech Générale", "Cybersécurité", "Intelligence Artificielle", "Infra & Cloud", "Dev & Frameworks", "Esport & Leaks Roster") :
+   - "summary" : 2 phrases d'analyse de fond en français sur la dynamique du secteur aujourd'hui (pour l'esport : mercato, leaks de rosters, transferts et actualité compétitive LoL/RL/CoD).
    - "articles" : Pour chaque article fourni dans ce pilier :
        * "title_fr" : Titre traduit et percutant en français.
-       * "tag" : Un mot-clé court entre crochets (ex: "Hardware", "Vulnérabilité", "LLM", "Linux", "Réseau", "Dev").
+       * "tag" : Un mot-clé court entre crochets (ex: "Hardware", "Vulnérabilité", "LLM", "Linux", "Réseau", "Dev", "LoL Mercato", "RLCS", "CoD CDL").
        * "point_fr" : 2 phrases complètes et claires en français détaillant les faits précis et l'impact direct (pas de texte tronqué).
 
 FORMAT STRICTEMENT EXIGÉ : UNIQUEMENT un objet JSON valide :
@@ -216,7 +230,8 @@ FORMAT STRICTEMENT EXIGÉ : UNIQUEMENT un objet JSON valide :
     "Cybersécurité": {{ "summary": "...", "articles": [...] }},
     "Intelligence Artificielle": {{ "summary": "...", "articles": [...] }},
     "Infra & Cloud": {{ "summary": "...", "articles": [...] }},
-    "Dev & Frameworks": {{ "summary": "...", "articles": [...] }}
+    "Dev & Frameworks": {{ "summary": "...", "articles": [...] }},
+    "Esport & Leaks Roster": {{ "summary": "...", "articles": [...] }}
   }}
 }}"""
 
@@ -333,14 +348,16 @@ def send_dense_digest_to_discord(structured_data, enriched_content):
             "footer": {"text": "Sélection Développeurs & Ingénieurs • Tech Watch"}
         }
 
-    # Découpage équilibré en 3 livraisons pour ne JAMAIS dépasser la limite Discord (6000 caractères max par envoi)
-    # Partie 1 : Brief Exécutif + Tech Générale (~2000 chars)
-    # Partie 2 : Cybersécurité + IA (~2800 chars)
-    # Partie 3 : Infra & Cloud + Dev + Pépite Open Source (~3000 chars)
+    # Découpage équilibré en 4 livraisons pour ne JAMAIS dépasser la limite Discord (6000 caractères max par envoi)
+    # Partie 1/4 : Brief Exécutif & Tech Générale (~2000 chars)
+    # Partie 2/4 : Cybersécurité & Intelligence Artificielle (~2800 chars)
+    # Partie 3/4 : Infra, Cloud, Dev & Pépite Open Source (~3000 chars)
+    # Partie 4/4 : 🎮 Esport & Leaks Roster (LoL • Rocket League • Call of Duty) (~2200 chars)
     parts_def = [
-        ("Partie 1/3 — Brief Exécutif & Tech Générale", [header_embed, pillar_embeds[0]] if pillar_embeds else [header_embed]),
-        ("Partie 2/3 — Cybersécurité & Intelligence Artificielle", pillar_embeds[1:3] if len(pillar_embeds) >= 3 else pillar_embeds[1:]),
-        ("Partie 3/3 — Infra, Cloud, Dev & Pépite Open Source", (pillar_embeds[3:] + ([spotlight_embed] if spotlight_embed else [])) if len(pillar_embeds) >= 4 else ([spotlight_embed] if spotlight_embed else []))
+        ("Partie 1/4 — Brief Exécutif & Tech Générale", [header_embed, pillar_embeds[0]] if pillar_embeds else [header_embed]),
+        ("Partie 2/4 — Cybersécurité & Intelligence Artificielle", pillar_embeds[1:3] if len(pillar_embeds) >= 3 else pillar_embeds[1:]),
+        ("Partie 3/4 — Infra, Cloud, Dev & Pépite Open Source", (pillar_embeds[3:5] + ([spotlight_embed] if spotlight_embed else [])) if len(pillar_embeds) >= 5 else ([spotlight_embed] if spotlight_embed else [])),
+        ("Partie 4/4 — 🎮 Esport & Leaks Roster (LoL • Rocket League • CoD)", [pillar_embeds[5]] if len(pillar_embeds) >= 6 else (pillar_embeds[5:] if len(pillar_embeds) > 5 else []))
     ]
 
     for part_label, embeds_chunk in parts_def:

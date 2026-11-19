@@ -86,7 +86,16 @@ FEEDS = {
     "Numerama": "https://www.numerama.com/feed/",
     "Frandroid": "https://www.frandroid.com/feed",
     "The Verge": "https://www.theverge.com/rss/index.xml",
-    "Ars Technica": "https://feeds.arstechnica.com/arstechnica/index"
+    "Ars Technica": "https://feeds.arstechnica.com/arstechnica/index",
+
+    # 🎮 Esport & Mercato Roster
+    "Dexerto LoL": "https://www.dexerto.com/league-of-legends/feed/",
+    "Dexerto Rocket League": "https://www.dexerto.com/rocket-league/feed/",
+    "Dexerto Call of Duty": "https://www.dexerto.com/call-of-duty/feed/",
+    "L'Équipe Esport": "https://dwh.lequipe.fr/api/edito/rss?path=/Esport/",
+    "Dexerto Esport": "https://www.dexerto.com/esports/feed/",
+    "Upcomer": "https://upcomer.com/feed",
+    "Fragster": "https://www.fragster.com/feed/"
 }
 
 def fetch_top_stories_monthly():
@@ -216,6 +225,11 @@ Structure JSON exacte :
       "name": "🟢 Dev, Langages & Open Source",
       "color_hex": "10B981",
       "highlights": [{{"title": "Titre traduit en français", "summary": "- Point 1 en français\\n- Point 2 en français", "link": "..."}}]
+    }},
+    {{
+      "name": "🎮 Esport, Mercato & Leaks Roster",
+      "color_hex": "EC4899",
+      "highlights": [{{"title": "Titre traduit en français", "summary": "- Point 1 en français\\n- Point 2 en français", "link": "..."}}]
     }}
   ]
 }}"""
@@ -248,7 +262,8 @@ def send_monthly_to_discord(digest):
         "EF4444": 0xEF4444,
         "3B82F6": 0x3B82F6,
         "10B981": 0x10B981,
-        "8B5CF6": 0x8B5CF6
+        "8B5CF6": 0x8B5CF6,
+        "EC4899": 0xEC4899
     }
 
     for cat in digest.get("categories", []):
@@ -267,11 +282,11 @@ def send_monthly_to_discord(digest):
             })
 
     # Découpage équilibré en 2 parties bien calibrées (<5500 caractères)
-    # Partie 1 : Intro / Top Event + Tech Générale + Cybersécurité (3 embeds, ~2500 chars)
-    # Partie 2 : IA + Cloud + Dev (3 embeds, ~2500 chars)
+    # Partie 1 : Intro / Top Event + Tech Générale + Cybersécurité + IA (4 embeds, ~2800 chars)
+    # Partie 2 : Cloud + Dev + Esport (3 embeds, ~2600 chars)
     chunks = [
-        ("Partie 1/2 — Bilan Macro, Tech & Cybersécurité", embeds[:3]),
-        ("Partie 2/2 — IA, Infrastructure Cloud & Dev", embeds[3:])
+        ("Partie 1/2 — Bilan Macro, Tech, Cyber & IA", embeds[:4]),
+        ("Partie 2/2 — Infra Cloud, Dev & Esport Mercato", embeds[4:])
     ]
 
     for part_label, chunk in chunks:
