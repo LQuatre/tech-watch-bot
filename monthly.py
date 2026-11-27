@@ -136,6 +136,46 @@ def fetch_top_stories_monthly():
     return stories
 
 
+MONTHLY_RESPONSE_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "intro": {"type": "STRING"},
+        "top_event": {
+            "type": "OBJECT",
+            "properties": {
+                "title": {"type": "STRING"},
+                "summary": {"type": "STRING"},
+            },
+            "required": ["title", "summary"],
+        },
+        "categories": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "name": {"type": "STRING"},
+                    "color_hex": {"type": "STRING"},
+                    "highlights": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "title": {"type": "STRING"},
+                                "summary": {"type": "STRING"},
+                                "link": {"type": "STRING"},
+                            },
+                            "required": ["title", "summary", "link"],
+                        },
+                    },
+                },
+                "required": ["name", "color_hex", "highlights"],
+            },
+        },
+    },
+    "required": ["intro", "top_event", "categories"],
+}
+
+
 def generate_monthly_digest(stories):
     if not stories:
         return None
@@ -148,24 +188,18 @@ Nous réalisons le GRAND BILAN MENSUEL ({current_month_name} {current_year}).
 Voici une sélection des sujets marquants des 30 derniers jours :
 {json.dumps(stories[:55], ensure_ascii=False)}
 
-Rédige une rétrospective mensuelle 100% EN FRANÇAIS IMPECCABLE au format JSON strict :
-{{
-  "intro": "3 phrases percutantes résumant les grandes tendances du mois.",
-  "top_event": {{
-    "title": "L'événement numéro 1 du mois",
-    "summary": "2 phrases en français expliquant pourquoi cet événement a marqué l'industrie."
-  }},
-  "categories": [
-    {{"name": "🟠 Tech Générale & Écosystème", "color_hex": "F59E0B", "highlights": [{{"title": "Titre FR", "summary": "- Point 1\\n- Point 2", "link": "..."}}]}},
-    {{"name": "🔴 Cybersécurité & Vulnérabilités Majeures", "color_hex": "EF4444", "highlights": [{{"title": "Titre FR", "summary": "- Point 1\\n- Point 2", "link": "..."}}]}},
-    {{"name": "🟣 Intelligence Artificielle & Modèles", "color_hex": "8B5CF6", "highlights": [{{"title": "Titre FR", "summary": "- Point 1\\n- Point 2", "link": "..."}}]}},
-    {{"name": "🔵 Infrastructure & Cloud", "color_hex": "3B82F6", "highlights": [{{"title": "Titre FR", "summary": "- Point 1\\n- Point 2", "link": "..."}}]}},
-    {{"name": "🟢 Dev, Langages & Open Source", "color_hex": "10B981", "highlights": [{{"title": "Titre FR", "summary": "- Point 1\\n- Point 2", "link": "..."}}]}},
-    {{"name": "🎮 Esport, Mercato & Leaks Roster", "color_hex": "EC4899", "highlights": [{{"title": "Titre FR", "summary": "- Point 1\\n- Point 2", "link": "..."}}]}}
-  ]
-}}"""
+Rédige une rétrospective mensuelle 100% EN FRANÇAIS IMPECCABLE avec exactement ces 6 catégories dans "categories" :
+1. name="🟠 Tech Générale & Écosystème", color_hex="F59E0B"
+2. name="🔴 Cybersécurité & Vulnérabilités Majeures", color_hex="EF4444"
+3. name="🟣 Intelligence Artificielle & Modèles", color_hex="8B5CF6"
+4. name="🔵 Infrastructure & Cloud", color_hex="3B82F6"
+5. name="🟢 Dev, Langages & Open Source", color_hex="10B981"
+6. name="🎮 Esport, Mercato & Leaks Roster", color_hex="EC4899"
+Chaque catégorie contient 2 highlights (title en FR, summary en 2 tirets "- Point 1\\n- Point 2", link)."""
 
-    return generate_json_with_verified_gemini(GEMINI_API_KEY, prompt, label="Bilan Mensuel")
+    return generate_json_with_verified_gemini(
+        GEMINI_API_KEY, prompt, label="Bilan Mensuel", response_schema=MONTHLY_RESPONSE_SCHEMA
+    )
 
 
 def send_monthly_to_discord(digest):

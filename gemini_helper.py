@@ -15,9 +15,7 @@ ZERO_FREE_QUOTA_TERMS = (
     "2.5-pro", "3.1-pro", "1.5-pro", "4-argon", "4-carbon", "2.0-flash", "2-flash"
 )
 
-# Ordre de préférence basé sur les quotas gratuits réels AI Studio :
-# 1 & 2 : Flash-Lite (500 requêtes/jour chacun -> préserve le quota 20 RPD de 3.8-flash !)
-# 3+    : Flash standards (20 requêtes/jour chacun en secours)
+# Ordre de préférence basé sur les quotas gratuits réels AI Studio (500 RPD d'abord)
 PRIORITY_PATTERNS = [
     "3.5-flash-lite",
     "3.5 flash lite",
@@ -43,8 +41,7 @@ _CACHED_MODELS = None
 def discover_verified_models(api_key: str) -> list[str]:
     """
     Interroge directement GET /v1beta/models de Google pour récupérer les VRAIS
-    identifiants exacts actifs sur cette clé API (zéro hallucination de nom de modèle).
-    Cet appel GET ne consomme aucun token ni quota RPD.
+    identifiants exacts actifs sur cette clé API (0 token, 0 RPD consommé).
     """
     global _CACHED_MODELS
     if _CACHED_MODELS is not None:
@@ -56,14 +53,14 @@ def discover_verified_models(api_key: str) -> list[str]:
         if resp.status_code != 200:
             err = resp.text[:200]
             print(f"⚠️ Impossible de lister /v1beta/models (HTTP {resp.status_code}): {err}")
-            _CACHED_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash"]
+            _CACHED_MODELS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3.8-flash"]
             return _CACHED_MODELS
 
         raw_models = resp.json().get("models", [])
         candidates = []
 
         for m in raw_models:
-            name = m.get("name", "")  # ex: "models/gemini-3.5-flash-lite-preview"
+            name = m.get("name", "")
             if not name.startswith("models/"):
                 continue
             model_id = name.split("models/", 1)[1]
@@ -81,19 +78,20 @@ def discover_verified_models(api_key: str) -> list[str]:
             if any(term in combined for term in ZERO_FREE_QUOTA_TERMS):
                 continue
 
-            # Calcul du rang de priorité
             rank = 999
             for idx, pat in enumerate(PRIORITY_PATTERNS):
                 if pat in combined:
                     rank = idx
                     break
 
-            candidates.append((rank, model_id, display_name))
+            # Préférer la version stable (sans -preview) à rang égal
+            is_preview = 1 if "preview" in model_id.lower() else 0
+            candidates.append((rank, is_preview, model_id))
 
-        candidates.sort(key=lambda x: (x[0], x[1]))
+        candidates.sort(key=lambda x: (x[0], x[1], x[2]))
         verified_ids = []
         seen = set()
-        for rank, mid, dname in candidates:
+        for _, _, mid in candidates:
             if mid not in seen:
                 seen.add(mid)
                 verified_ids.append(mid)
@@ -108,7 +106,7 @@ def discover_verified_models(api_key: str) -> list[str]:
     except Exception as e:
         print(f"⚠️ Exception lors de la découverte des modèles : {e}")
 
-    _CACHED_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash"]
+    _CACHED_MODELS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-3.8-flash"]
     return _CACHED_MODELS
 
 
@@ -117,33 +115,44 @@ def _extract_json(raw_text: str):
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text)
         text = re.sub(r"\s*```$", "", text)
+
+    # Nettoyage préventif des virgules finales invalides (", }" ou ", ]")
+    cleaned = re.sub(r",\s*([}\]])", r"\1", text)
     try:
-        return json.loads(text)
+        return json.loads(cleaned)
     except json.JSONDecodeError:
-        # Tentative d'extraction du premier bloc {...}
-        start = text.find("{")
-        end = text.rfind("}")
+        start = cleaned.find("{")
+        end = cleaned.rfind("}")
         if start != -1 and end != -1 and end > start:
-            return json.loads(text[start : end + 1])
+            return json.loads(cleaned[start : end + 1])
         raise
 
 
-def generate_json_with_verified_gemini(api_key: str, prompt: str, label: str = "génération") -> dict | None:
+def generate_json_with_verified_gemini(
+    api_key: str,
+    prompt: str,
+    label: str = "génération",
+    response_schema: dict | None = None,
+) -> dict | None:
     """
-    Appelle Gemini en utilisant uniquement les identifiants vérifiés par l'API Google,
-    en privilégiant les modèles Flash-Lite (500 RPD) pour ne pas toucher au quota 20 RPD.
+    Appelle Gemini avec décodage JSON contraint (responseSchema) pour garantir
+    100% un objet JSON valide sans erreur de syntaxe ni mauvais type.
     """
     models = discover_verified_models(api_key)
 
     for model_id in models[:6]:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}"
+        gen_config = {
+            "temperature": 0.2,
+            "maxOutputTokens": 8192,
+            "responseMimeType": "application/json",
+        }
+        if response_schema:
+            gen_config["responseSchema"] = response_schema
+
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {
-                "temperature": 0.2,
-                "maxOutputTokens": 8192,
-                "responseMimeType": "application/json",
-            },
+            "generationConfig": gen_config,
         }
 
         try:
@@ -160,19 +169,20 @@ def generate_json_with_verified_gemini(api_key: str, prompt: str, label: str = "
                     continue
                 raw_text = candidates[0]["content"]["parts"][0]["text"]
                 parsed = _extract_json(raw_text)
+                if not isinstance(parsed, dict):
+                    print(f"  ↳ Format inattendu ({type(parsed).__name__}) sur {model_id}, essai suivant...")
+                    continue
                 usage = body.get("usageMetadata", {})
                 tot_tok = usage.get("totalTokenCount", "?")
                 print(f"  ✅ Succès avec '{model_id}' en {elapsed:.1f}s ({tot_tok} tokens)")
                 return parsed
 
-            # Lecture du message d'erreur exact renvoyé par Google
             try:
                 err_msg = resp.json().get("error", {}).get("message", resp.text[:160])
             except Exception:
                 err_msg = resp.text[:160]
 
             print(f"  ↳ HTTP {resp.status_code} sur '{model_id}' ({elapsed:.1f}s) : {err_msg[:140]}")
-            # Pas de boucle inutile sur le même modèle : bascule immédiate sur le suivant
             continue
 
         except Exception as e:

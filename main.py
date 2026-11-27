@@ -23,9 +23,10 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-# Les 5 piliers Tech & Cyber (43 sources)
+# Les 5 piliers Tech & Cyber (avec clé ASCII stable pour responseSchema Gemini)
 TECH_PILLARS = {
     "Tech Générale": {
+        "schema_key": "tech_generale",
         "emoji": "🟠",
         "color": 0xF59E0B,
         "feeds": {
@@ -40,6 +41,7 @@ TECH_PILLARS = {
         }
     },
     "Cybersécurité": {
+        "schema_key": "cybersecurite",
         "emoji": "🔴",
         "color": 0xEF4444,
         "feeds": {
@@ -56,6 +58,7 @@ TECH_PILLARS = {
         }
     },
     "Intelligence Artificielle": {
+        "schema_key": "ia",
         "emoji": "🟣",
         "color": 0x8B5CF6,
         "feeds": {
@@ -70,6 +73,7 @@ TECH_PILLARS = {
         }
     },
     "Infra & Cloud": {
+        "schema_key": "infra_cloud",
         "emoji": "🔵",
         "color": 0x3B82F6,
         "feeds": {
@@ -83,6 +87,7 @@ TECH_PILLARS = {
         }
     },
     "Dev & Frameworks": {
+        "schema_key": "dev_frameworks",
         "emoji": "🟢",
         "color": 0x10B981,
         "feeds": {
@@ -103,6 +108,7 @@ TECH_PILLARS = {
 # Les 3 Grands Blocs Esport & Leaks Roster
 ESPORT_GAMES = {
     "League of Legends": {
+        "schema_key": "lol",
         "title": "🏆 LEAGUE OF LEGENDS • MERCATO & LEAKS",
         "emoji": "🏆",
         "color": 0x1D4ED8,
@@ -115,6 +121,7 @@ ESPORT_GAMES = {
         "default_summary": "Mercato et leaks de rosters en ébullition : accords verbaux, rachats de contrats (buyouts) et recompositions majeures pour le LEC et la LFL."
     },
     "Rocket League": {
+        "schema_key": "rocket_league",
         "title": "🚀 ROCKET LEAGUE • ROSTERMANIA & RLCS",
         "emoji": "🚀",
         "color": 0x0284C7,
@@ -126,6 +133,7 @@ ESPORT_GAMES = {
         "default_summary": "Rostermania et transferts sur Rocket League : réajustements de trios, mercato d'intersaison et qualifications pour les futurs tournois RLCS."
     },
     "Call of Duty": {
+        "schema_key": "call_of_duty",
         "title": "💥 CALL OF DUTY • CDL & TRANSFERTS PROS",
         "emoji": "💥",
         "color": 0xEA580C,
@@ -152,6 +160,83 @@ ROSTER_KEYWORDS = [
     "vitality", "fnatic", "g2", "rlcs", "cdl", "wooloo", "lineup"
 ]
 
+# Schémas JSON stricts (Gemini Structured Outputs -> 0 erreur de syntaxe JSON, 0 mauvais type)
+PILLAR_BLOCK_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "summary": {"type": "STRING"},
+        "articles": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "title_fr": {"type": "STRING"},
+                    "tag": {"type": "STRING"},
+                    "point_fr": {"type": "STRING"},
+                },
+                "required": ["title_fr", "tag", "point_fr"],
+            },
+        },
+    },
+    "required": ["summary", "articles"],
+}
+
+TECH_RESPONSE_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "executive_brief": {
+            "type": "OBJECT",
+            "properties": {
+                "headline": {"type": "STRING"},
+                "threat_level": {"type": "STRING"},
+                "macro_trend": {"type": "STRING"},
+            },
+            "required": ["headline", "threat_level", "macro_trend"],
+        },
+        "spotlight_tool": {
+            "type": "OBJECT",
+            "properties": {
+                "title": {"type": "STRING"},
+                "link": {"type": "STRING"},
+                "why": {"type": "STRING"},
+            },
+            "required": ["title", "link", "why"],
+        },
+        "tech_pillars": {
+            "type": "OBJECT",
+            "properties": {
+                "tech_generale": PILLAR_BLOCK_SCHEMA,
+                "cybersecurite": PILLAR_BLOCK_SCHEMA,
+                "ia": PILLAR_BLOCK_SCHEMA,
+                "infra_cloud": PILLAR_BLOCK_SCHEMA,
+                "dev_frameworks": PILLAR_BLOCK_SCHEMA,
+            },
+            "required": ["tech_generale", "cybersecurite", "ia", "infra_cloud", "dev_frameworks"],
+        },
+    },
+    "required": ["executive_brief", "spotlight_tool", "tech_pillars"],
+}
+
+ESPORT_RESPONSE_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "esport_games": {
+            "type": "OBJECT",
+            "properties": {
+                "lol": PILLAR_BLOCK_SCHEMA,
+                "rocket_league": PILLAR_BLOCK_SCHEMA,
+                "call_of_duty": PILLAR_BLOCK_SCHEMA,
+            },
+            "required": ["lol", "rocket_league", "call_of_duty"],
+        }
+    },
+    "required": ["esport_games"],
+}
+
+
+def as_dict(val) -> dict:
+    return val if isinstance(val, dict) else {}
+
 
 def clean_html(raw_html: str) -> str:
     clean = re.sub(r"<[^>]+>", "", raw_html or "")
@@ -169,7 +254,7 @@ def _download_feed(url: str):
 
 
 def fetch_all_data():
-    """Télécharge en parallèle tous les flux RSS (environ 4s au lieu de 45s)."""
+    """Télécharge en parallèle tous les flux RSS (~3.5s)."""
     t0 = time.time()
     all_urls = set()
     for conf in TECH_PILLARS.values():
@@ -252,70 +337,79 @@ def fetch_all_data():
 
 def translate_and_enrich_with_gemini(tech_data, esport_data):
     """
-    Découpe l'enrichissement en 2 appels JSON rapides et légers sur les modèles
-    vérifiés dynamiquement (priorité Flash-Lite à 500 RPD -> 0 timeout, 0 troncature).
+    2 appels Gemini structurés par responseSchema strict (100% JSON valide garanti).
     """
     compact_tech = {
-        p: [{"title": a["title"][:90], "source": a["source"], "snippet": a["snippet"][:120], "link": a["link"]} for a in arts]
+        TECH_PILLARS[p]["schema_key"]: [
+            {"title": a["title"][:90], "source": a["source"], "snippet": a["snippet"][:120], "link": a["link"]}
+            for a in arts
+        ]
         for p, arts in tech_data.items()
     }
     compact_esport = {
-        g: [{"title": a["title"][:90], "source": a["source"], "snippet": a["snippet"][:120], "link": a["link"]} for a in arts]
+        ESPORT_GAMES[g]["schema_key"]: [
+            {"title": a["title"][:90], "source": a["source"], "snippet": a["snippet"][:120], "link": a["link"]}
+            for a in arts
+        ]
         for g, arts in esport_data.items()
     }
 
     prompt_tech = f"""Tu es le rédacteur en chef d'une revue tech et cybersécurité francophone.
-Voici les articles Tech & Cyber du jour :
+Voici les articles Tech & Cyber du jour classés par clé de pilier :
 {json.dumps(compact_tech, ensure_ascii=False)}
 
-Génère UNIQUEMENT un objet JSON valide 100% EN FRANÇAIS IMPECCABLE :
-1. "executive_brief": {{"headline": "1 phrase fait marquant", "threat_level": "Normal 🟢 | Modéré 🟡 | Élevé 🔴", "macro_trend": "1 phrase tendance"}}
-2. "spotlight_tool": {{"title": "Nom outil/projet open-source repéré", "link": "URL", "why": "2 phrases d'explication"}}
-3. "tech_pillars": Pour CHAQUE pilier ("Tech Générale", "Cybersécurité", "Intelligence Artificielle", "Infra & Cloud", "Dev & Frameworks") :
-   - "summary": 2 phrases d'analyse éditoriale.
-   - "articles": liste dans le même ordre avec {{"title_fr": "Titre traduit FR", "tag": "Mot-clé court", "point_fr": "2 phrases claires et complètes en français (faits + impact)"}}.
+Rédige 100% EN FRANÇAIS IMPECCABLE :
+- "executive_brief": headline (1 phrase fait marquant), threat_level ("Normal 🟢", "Modéré 🟡" ou "Élevé 🔴"), macro_trend (1 phrase tendance).
+- "spotlight_tool": l'outil ou projet open-source remarquable du jour (title, link, why en 2 phrases).
+- "tech_pillars": pour chaque clé (tech_generale, cybersecurite, ia, infra_cloud, dev_frameworks), rédige "summary" (2 phrases d'analyse) et "articles" (même ordre : title_fr traduit en français, tag court, point_fr de 2 phrases complètes expliquant faits + impact).
 """
 
-    prompt_esport = f"""Tu es un journaliste esport francophone spécialiste du mercato (LoL, Rocket League, Call of Duty).
-Voici les actus Esport du jour :
+    prompt_esport = f"""Tu es un journaliste esport francophone spécialiste du mercato (League of Legends, Rocket League, Call of Duty).
+Voici les actus Esport du jour classées par clé de jeu (lol, rocket_league, call_of_duty) :
 {json.dumps(compact_esport, ensure_ascii=False)}
 
-Génère UNIQUEMENT un objet JSON valide 100% EN FRANÇAIS IMPECCABLE avec la clé "esport_games" contenant pour CHAQUE jeu ("League of Legends", "Rocket League", "Call of Duty") :
+Rédige 100% EN FRANÇAIS IMPECCABLE dans "esport_games" pour chaque clé (lol, rocket_league, call_of_duty) :
 - "summary": 2 phrases d'analyse centrées sur le mercato, les transferts, leaks de rosters et enjeux compétitifs.
-- "articles": liste dans le même ordre avec {{"title_fr": "Titre traduit FR", "tag": "Ex: LoL Mercato | RLCS | CoD CDL", "point_fr": "2 phrases complètes expliquant joueurs, équipes et impact"}}.
+- "articles": même ordre avec title_fr traduit en français, tag explicite (ex: "LoL Mercato", "RLCS", "CoD CDL"), point_fr de 2 phrases complètes expliquant joueurs, équipes et enjeux.
 """
 
-    tech_res = generate_json_with_verified_gemini(GEMINI_API_KEY, prompt_tech, label="Volet Tech & Cyber") or {}
-    esport_res = generate_json_with_verified_gemini(GEMINI_API_KEY, prompt_esport, label="Volet Esport & Mercato") or {}
+    tech_res = as_dict(
+        generate_json_with_verified_gemini(
+            GEMINI_API_KEY, prompt_tech, label="Volet Tech & Cyber", response_schema=TECH_RESPONSE_SCHEMA
+        )
+    )
+    esport_res = as_dict(
+        generate_json_with_verified_gemini(
+            GEMINI_API_KEY, prompt_esport, label="Volet Esport & Mercato", response_schema=ESPORT_RESPONSE_SCHEMA
+        )
+    )
 
     if not tech_res and not esport_res:
         return None
 
     return {
-        "executive_brief": tech_res.get("executive_brief", {}),
-        "spotlight_tool": tech_res.get("spotlight_tool", {}),
-        "tech_pillars": tech_res.get("tech_pillars", {}),
-        "esport_games": esport_res.get("esport_games", esport_res if "League of Legends" in esport_res else {}),
+        "executive_brief": as_dict(tech_res.get("executive_brief")),
+        "spotlight_tool": as_dict(tech_res.get("spotlight_tool")),
+        "tech_pillars": as_dict(tech_res.get("tech_pillars")),
+        "esport_games": as_dict(esport_res.get("esport_games")),
     }
 
 
 def send_dense_digest_to_discord(tech_data, esport_data, enriched_content):
     """Envoie le digest sur Discord découpé en 4 livraisons dont 3 gros blocs dédiés pour l'Esport."""
     today = datetime.now().strftime("%d/%m/%Y")
+    enriched_dict = as_dict(enriched_content)
 
-    brief = enriched_content.get("executive_brief", {}) if enriched_content else {}
-    spotlight = enriched_content.get("spotlight_tool", {}) if enriched_content else {}
-    tech_ai = enriched_content.get("tech_pillars", {}) if enriched_content else {}
-    esport_ai = enriched_content.get("esport_games", {}) if enriched_content else {}
+    brief = as_dict(enriched_dict.get("executive_brief"))
+    spotlight = as_dict(enriched_dict.get("spotlight_tool"))
+    tech_ai = as_dict(enriched_dict.get("tech_pillars"))
+    esport_ai = as_dict(enriched_dict.get("esport_games"))
 
-    if brief and brief.get("headline"):
-        headline = brief.get("headline", "")
-        threat = brief.get("threat_level", "Normal 🟢")
-        macro = brief.get("macro_trend", "")
+    if brief.get("headline"):
         header_description = (
-            f"🎯 **Le fait marquant :** {headline}\n\n"
-            f"🛡️ **Vigilance Cybersécurité :** {threat}\n\n"
-            f"📈 **Tendance macro :** {macro}\n\n"
+            f"🎯 **Le fait marquant :** {brief.get('headline', '')}\n\n"
+            f"🛡️ **Vigilance Cybersécurité :** {brief.get('threat_level', 'Normal 🟢')}\n\n"
+            f"📈 **Tendance macro :** {brief.get('macro_trend', '')}\n\n"
             f"⏱️ *Temps de lecture estimé : ~3 minutes*"
         )
     else:
@@ -334,17 +428,16 @@ def send_dense_digest_to_discord(tech_data, esport_data, enriched_content):
         if not arts:
             continue
 
-        emoji = conf["emoji"]
-        color = conf["color"]
-        pillar_info = tech_ai.get(pillar_name, {})
+        s_key = conf["schema_key"]
+        pillar_info = as_dict(tech_ai.get(s_key) or tech_ai.get(pillar_name))
         summary = pillar_info.get("summary") or DEFAULT_SUMMARIES.get(pillar_name, "")
-        articles_ai = pillar_info.get("articles", [])
+        articles_ai = pillar_info.get("articles") if isinstance(pillar_info.get("articles"), list) else []
 
         field_text = f"*{summary}*\n\n"
         for idx, art in enumerate(arts):
-            ai_item = articles_ai[idx] if idx < len(articles_ai) else {}
+            ai_item = as_dict(articles_ai[idx]) if idx < len(articles_ai) else {}
             title = ai_item.get("title_fr") or art.get("title", "Actualité")
-            tag = f"`[{ai_item.get('tag', 'Tech')}]` " if ai_item.get("tag") else ""
+            tag = f"`[{ai_item.get('tag')}]` " if ai_item.get("tag") else ""
             point = ai_item.get("point_fr") or art.get("snippet", "")
             link = art.get("link", "")
             source = art.get("source", "Web")
@@ -355,14 +448,14 @@ def send_dense_digest_to_discord(tech_data, esport_data, enriched_content):
                 field_text += f"• {tag}**[{title}]({link})** `({source})`\n\n"
 
         tech_embeds.append({
-            "title": f"{emoji} {pillar_name.upper()}",
+            "title": f"{conf['emoji']} {pillar_name.upper()}",
             "description": field_text.strip(),
-            "color": color,
+            "color": conf["color"],
             "footer": {"text": f"Pôle {pillar_name} • Édition Complète en Français"}
         })
 
     spotlight_embed = None
-    if spotlight and spotlight.get("title") and spotlight.get("why"):
+    if spotlight.get("title") and spotlight.get("why"):
         spotlight_embed = {
             "title": "⭐ LA PÉPITE OPEN SOURCE & TECHNIQUE DU JOUR",
             "description": f"• **[{spotlight.get('title')}]({spotlight.get('link', '')})**\n↳ {spotlight.get('why')}",
@@ -376,15 +469,16 @@ def send_dense_digest_to_discord(tech_data, esport_data, enriched_content):
         if not arts:
             continue
 
-        game_info = esport_ai.get(game_name, {})
+        s_key = conf["schema_key"]
+        game_info = as_dict(esport_ai.get(s_key) or esport_ai.get(game_name))
         summary = game_info.get("summary") or conf["default_summary"]
-        articles_ai = game_info.get("articles", [])
+        articles_ai = game_info.get("articles") if isinstance(game_info.get("articles"), list) else []
 
         field_text = f"*{summary}*\n\n"
         for idx, art in enumerate(arts):
-            ai_item = articles_ai[idx] if idx < len(articles_ai) else {}
+            ai_item = as_dict(articles_ai[idx]) if idx < len(articles_ai) else {}
             title = ai_item.get("title_fr") or art.get("title", "Actualité")
-            tag = f"`[{ai_item.get('tag', game_name)}]` " if ai_item.get("tag") else ""
+            tag = f"`[{ai_item.get('tag')}]` " if ai_item.get("tag") else ""
             point = ai_item.get("point_fr") or art.get("snippet", "")
             link = art.get("link", "")
             source = art.get("source", "Web")
@@ -442,11 +536,20 @@ def run_gemini_smoke_test():
         print("❌ Clé GEMINI_API_KEY manquante.")
         sys.exit(1)
     models = discover_verified_models(GEMINI_API_KEY)
-    print(f"\n🧪 Test réel d'appel JSON sur le modèle prioritaire : {models[0] if models else 'aucun'}")
+    print(f"\n🧪 Test réel d'appel JSON structuré sur le modèle prioritaire : {models[0] if models else 'aucun'}")
+    schema = {
+        "type": "OBJECT",
+        "properties": {
+            "ok": {"type": "BOOLEAN"},
+            "message": {"type": "STRING"},
+        },
+        "required": ["ok", "message"],
+    }
     res = generate_json_with_verified_gemini(
         GEMINI_API_KEY,
-        'Réponds uniquement avec ce JSON exact : {"ok": true, "message": "Modèle Gemini opérationnel en français"}',
-        label="Smoke-Test Vérification Modèle"
+        "Confirme en français que le modèle Gemini est opérationnel.",
+        label="Smoke-Test Vérification Modèle",
+        response_schema=schema,
     )
     if not res:
         print("❌ Le test réel Gemini a échoué.")
