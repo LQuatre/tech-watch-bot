@@ -1,10 +1,7 @@
 name: Monthly AI Tech Retrospective
 
 on:
-  schedule:
-    # Le 1er de chaque mois à 6h50 UTC (7h50 en France) pour éviter l'embouteillage mondial de 8h00
-    - cron: '50 6 1 * *'
-  # Déclenchement manuel
+  # Déclenchement instantané via cron-job.org le 1er du mois à 07h50 pile ou bouton manuel
   workflow_dispatch:
 
 jobs:

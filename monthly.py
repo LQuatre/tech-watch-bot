@@ -1,10 +1,12 @@
 import os
 import json
-import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone, timedelta
 import feedparser
 import requests
+
+from gemini_helper import generate_json_with_verified_gemini
 
 try:
     from dotenv import load_dotenv
@@ -18,16 +20,6 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip(' "\'\r\n\t')
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
-
-# Modèles en cascade : priorité absolue à 3.8, avec repli immédiat sur 3.7 / 3.6 / 3.1 en cas de pic de charge
-# Priorité absolue à 3.8 dès qu'il a du quota disponible, avec repli instantané sur 3.6
-CANDIDATE_MODELS = [
-    "gemini-3.8-flash",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash-lite",
-    "gemini-3.1-flash-lite",
-    "gemini-3-flash"
-]
 
 MONTHS_FR = [
     "", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -98,86 +90,51 @@ FEEDS = {
     "Fragster": "https://www.fragster.com/feed/"
 }
 
+
+def _fetch_single_feed(item):
+    source, url = item
+    out = []
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=7)
+        if r.status_code == 200:
+            feed = feedparser.parse(r.content)
+            for entry in feed.entries[:3]:
+                title = getattr(entry, "title", "").strip()
+                link = getattr(entry, "link", "").strip()
+                if title and link:
+                    out.append({"source": source, "title": title[:90], "link": link})
+    except Exception:
+        pass
+    return out
+
+
 def fetch_top_stories_monthly():
     stories = []
     now = datetime.now(timezone.utc)
     cutoff_ts = int((now - timedelta(days=30)).timestamp())
 
     print("📊 1. Récupération des sujets les plus votés du mois sur Hacker News...")
-    hn_url = f"https://hn.algolia.com/api/v1/search?tags=story&numericFilters=created_at_i>{cutoff_ts}&hitsPerPage=35"
+    hn_url = f"https://hn.algolia.com/api/v1/search?tags=story&numericFilters=created_at_i>{cutoff_ts}&hitsPerPage=30"
     try:
-        resp = requests.get(hn_url, timeout=20)
+        resp = requests.get(hn_url, timeout=15)
         if resp.status_code == 200:
             hits = resp.json().get("hits", [])
             for h in hits:
                 title = h.get("title")
                 url = h.get("url") or f"https://news.ycombinator.com/item?id={h.get('objectID')}"
-                stories.append({
-                    "source": "Hacker News (Top)",
-                    "title": title[:90],
-                    "link": url
-                })
+                if title:
+                    stories.append({"source": "Hacker News (Top)", "title": title[:90], "link": url})
             print(f"  ✓ {len(hits)} histoires majeures récupérées de Hacker News.")
     except Exception as e:
         print(f"  ✗ Erreur Hacker News : {e}")
 
-    print("📰 2. Récupération des flux spécialisés...")
-    for source, url in FEEDS.items():
-        try:
-            r = requests.get(url, headers=HEADERS, timeout=8)
-            if r.status_code != 200:
-                continue
-            feed = feedparser.parse(r.content)
-            count = 0
-            for entry in feed.entries[:4]:
-                title = getattr(entry, "title", "").strip()
-                link = getattr(entry, "link", "").strip()
-                if title and link:
-                    stories.append({
-                        "source": source,
-                        "title": title[:90],
-                        "link": link
-                    })
-                    count += 1
-            print(f"  ✓ {source} : {count} articles")
-        except Exception as e:
-            print(f"  ✗ Erreur {source} : {e}")
-
+    print(f"📰 2. Téléchargement parallèle de {len(FEEDS)} flux spécialisés...")
+    with ThreadPoolExecutor(max_workers=12) as pool:
+        for items in pool.map(_fetch_single_feed, FEEDS.items()):
+            stories.extend(items)
+    print(f"  ✓ Total articles collectés : {len(stories)}")
     return stories
 
-def call_gemini_with_fallback(prompt: str):
-    for model in CANDIDATE_MODELS:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {
-                "temperature": 0.2,
-                "responseMimeType": "application/json"
-            }
-        }
-        for attempt in range(2):
-            try:
-                print(f"Essai mensuel avec {model} (tentative {attempt+1})...")
-                resp = requests.post(url, json=payload, timeout=45)
-                if resp.status_code == 200:
-                    raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-                    if raw.startswith("```"):
-                        raw = re.sub(r'^```(json)?\s*', '', raw)
-                        raw = re.sub(r'\s*```$', '', raw)
-                    return json.loads(raw)
-                elif resp.status_code == 429:
-                    print(f"  ↳ Quota atteint sur {model} (429), bascule immédiate...")
-                    break
-                elif resp.status_code == 503:
-                    print(f"  ↳ Modèle {model} indisponible (503), bascule...")
-                    break
-                elif resp.status_code == 404:
-                    print(f"  ↳ Modèle {model} 404, essai suivant...")
-                    break
-            except Exception as e:
-                print(f"  ↳ Exception {e}")
-                time.sleep(1)
-    return None
 
 def generate_monthly_digest(stories):
     if not stories:
@@ -186,55 +143,30 @@ def generate_monthly_digest(stories):
     current_month_name = MONTHS_FR[datetime.now().month]
     current_year = datetime.now().year
 
-    prompt = f"""Tu es le rédacteur en chef d'une prestigieuse revue tech et cybersécurité francophone.
+    prompt = f"""Tu es le rédacteur en chef d'une prestigieuse revue tech, cyber et esport francophone.
 Nous réalisons le GRAND BILAN MENSUEL ({current_month_name} {current_year}).
-Voici une sélection des sujets les plus marquants des 30 derniers jours :
-{json.dumps(stories[:50], ensure_ascii=False, indent=2)}
+Voici une sélection des sujets marquants des 30 derniers jours :
+{json.dumps(stories[:55], ensure_ascii=False)}
 
-Mission :
-Rédige une grande rétrospective mensuelle 100% EN FRANÇAIS IMPECCABLE, riche, structurée et captivante.
-Structure JSON exacte :
+Rédige une rétrospective mensuelle 100% EN FRANÇAIS IMPECCABLE au format JSON strict :
 {{
-  "intro": "3 phrases percutantes résumant les grandes tendances et les faits majeurs qui ont transformé l'industrie ce mois-ci.",
+  "intro": "3 phrases percutantes résumant les grandes tendances du mois.",
   "top_event": {{
     "title": "L'événement numéro 1 du mois",
-    "summary": "2 phrases en français expliquant pourquoi cet événement a marqué toute l'industrie."
+    "summary": "2 phrases en français expliquant pourquoi cet événement a marqué l'industrie."
   }},
   "categories": [
-    {{
-      "name": "🟠 Tech Générale & Écosystème",
-      "color_hex": "F59E0B",
-      "highlights": [{{"title": "Titre traduit en français", "summary": "- Point 1 en français\\n- Point 2 en français", "link": "..."}}]
-    }},
-    {{
-      "name": "🔴 Cybersécurité & Vulnérabilités Majeures",
-      "color_hex": "EF4444",
-      "highlights": [{{"title": "Titre traduit en français", "summary": "- Point 1 en français\\n- Point 2 en français", "link": "..."}}]
-    }},
-    {{
-      "name": "🟣 Intelligence Artificielle & Modèles",
-      "color_hex": "8B5CF6",
-      "highlights": [{{"title": "Titre traduit en français", "summary": "- Point 1 en français\\n- Point 2 en français", "link": "..."}}]
-    }},
-    {{
-      "name": "🔵 Infrastructure & Cloud",
-      "color_hex": "3B82F6",
-      "highlights": [{{"title": "Titre traduit en français", "summary": "- Point 1 en français\\n- Point 2 en français", "link": "..."}}]
-    }},
-    {{
-      "name": "🟢 Dev, Langages & Open Source",
-      "color_hex": "10B981",
-      "highlights": [{{"title": "Titre traduit en français", "summary": "- Point 1 en français\\n- Point 2 en français", "link": "..."}}]
-    }},
-    {{
-      "name": "🎮 Esport, Mercato & Leaks Roster",
-      "color_hex": "EC4899",
-      "highlights": [{{"title": "Titre traduit en français", "summary": "- Point 1 en français\\n- Point 2 en français", "link": "..."}}]
-    }}
+    {{"name": "🟠 Tech Générale & Écosystème", "color_hex": "F59E0B", "highlights": [{{"title": "Titre FR", "summary": "- Point 1\\n- Point 2", "link": "..."}}]}},
+    {{"name": "🔴 Cybersécurité & Vulnérabilités Majeures", "color_hex": "EF4444", "highlights": [{{"title": "Titre FR", "summary": "- Point 1\\n- Point 2", "link": "..."}}]}},
+    {{"name": "🟣 Intelligence Artificielle & Modèles", "color_hex": "8B5CF6", "highlights": [{{"title": "Titre FR", "summary": "- Point 1\\n- Point 2", "link": "..."}}]}},
+    {{"name": "🔵 Infrastructure & Cloud", "color_hex": "3B82F6", "highlights": [{{"title": "Titre FR", "summary": "- Point 1\\n- Point 2", "link": "..."}}]}},
+    {{"name": "🟢 Dev, Langages & Open Source", "color_hex": "10B981", "highlights": [{{"title": "Titre FR", "summary": "- Point 1\\n- Point 2", "link": "..."}}]}},
+    {{"name": "🎮 Esport, Mercato & Leaks Roster", "color_hex": "EC4899", "highlights": [{{"title": "Titre FR", "summary": "- Point 1\\n- Point 2", "link": "..."}}]}}
   ]
 }}"""
 
-    return call_gemini_with_fallback(prompt)
+    return generate_json_with_verified_gemini(GEMINI_API_KEY, prompt, label="Bilan Mensuel")
+
 
 def send_monthly_to_discord(digest):
     if not digest:
@@ -256,7 +188,6 @@ def send_monthly_to_discord(digest):
     }
 
     embeds = [intro_embed]
-
     color_map = {
         "F59E0B": 0xF59E0B,
         "EF4444": 0xEF4444,
@@ -281,9 +212,6 @@ def send_monthly_to_discord(digest):
                 "footer": {"text": f"Bilan Mensuel • {cat.get('name')}"}
             })
 
-    # Découpage équilibré en 2 parties bien calibrées (<5500 caractères)
-    # Partie 1 : Intro / Top Event + Tech Générale + Cybersécurité + IA (4 embeds, ~2800 chars)
-    # Partie 2 : Cloud + Dev + Esport (3 embeds, ~2600 chars)
     chunks = [
         ("Partie 1/2 — Bilan Macro, Tech, Cyber & IA", embeds[:4]),
         ("Partie 2/2 — Infra Cloud, Dev & Esport Mercato", embeds[4:])
@@ -293,7 +221,6 @@ def send_monthly_to_discord(digest):
         if not chunk:
             continue
 
-        # Sécurité anti-dépassement Discord (6000 chars max)
         total_chars = sum(len(e.get("title", "")) + len(e.get("description", "")) + len(e.get("footer", {}).get("text", "")) for e in chunk)
         if total_chars > 5500:
             for e in chunk:
@@ -315,6 +242,7 @@ def send_monthly_to_discord(digest):
             time.sleep(1.5)
         except Exception as e:
             print(f"❌ Erreur réseau: {e}")
+
 
 if __name__ == "__main__":
     if not DISCORD_WEBHOOK_URL or not GEMINI_API_KEY:

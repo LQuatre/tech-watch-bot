@@ -1,11 +1,18 @@
 name: Daily AI Tech Watch
 
 on:
-  schedule:
-    # Tous les jours à 6h50 UTC (7h50 en France) pour éviter l'embouteillage mondial de 8h00
-    - cron: '50 6 * * *'
-  # Déclenchement manuel
+  # Déclenchement instantané (2s) via cron-job.org à 07h50 pile ou bouton manuel
+  # (Le schedule natif GitHub a été retiré car il subissait 8h à 12h de retard)
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "Mode d'exécution"
+        required: false
+        default: "full"
+        type: choice
+        options:
+          - full
+          - test_gemini_only
 
 jobs:
   run-tech-watch:
@@ -24,9 +31,10 @@ jobs:
       - name: Installer les dépendances
         run: pip install -r requirements.txt
 
-      - name: Lancer la veille et publier sur Discord
+      - name: Lancer la veille (ou le test modèle Gemini)
         env:
           PYTHONUNBUFFERED: "1"
+          RUN_MODE: ${{ inputs.mode || 'full' }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python -u main.py
